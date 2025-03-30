@@ -71,3 +71,6 @@
     - role: sidewinderd
       tags:
         - sidewinderd
+    - role: grub
+      tags:
+        - grub

@@ -1,0 +1,1 @@
+default_grub_template: "default_grub.j2"

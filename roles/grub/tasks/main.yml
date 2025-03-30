@@ -1,0 +1,11 @@
+- name: Update default grub configuration file
+  template:
+    src: "{{ default_grub_template }}"
+    dest: /etc/default/grub
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Update GRUB configuration
+  command: grub2-mkconfig -o /boot/grub2/grub.cfg
+  become: yes
