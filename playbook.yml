@@ -21,56 +21,77 @@
     - role: base
       tags:
         - base 
+
     - role: browsers
       tags:
         - browsers
+
     - role: development
       tags:
         - development
+
     - role: discord
       tags:
         - discord
+
     - role: download_tools
       tags:
         - download
         - tools
+
     - role: gnome
       tags:
         - gnome
+
     - role: multimedia
       tags:
         - multimedia
+
     - role: networking
       tags:
         - networking
+
     - role: storage_tools
       tags:
         - storage_tools
         - tools
+
     - role: nvidia
       tags:
         - nvidia
+
     - role: unity
       tags:
         - unity
+        
     - role: virtualization
       tags:
         - virtualization
+
     - role: 3d_modelling
       tags:
         - 3d_modelling
+
     - role: games
       tags:
         - games
+
     - role: cryptomator
       tags:
         - cryptomator
+
     - role: syncthing
       tags:
         - syncthing
+        
     - role: sidewinderd
       tags:
         - sidewinderd
+
+    - role: cybersecurity
+      tags:
+        - cybersecurity
+        
     - role: grub
       tags:
         - grub
