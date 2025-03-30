@@ -1,0 +1,17 @@
+---
+- name: install go
+  dnf:
+    name: golang
+    state: present
+
+- name: add global go to global PATH
+  lineinfile:
+    path: /etc/profile
+    line: 'export PATH=$PATH:/usr/local/go/bin'
+
+- name: add local go to local PATH
+  become: yes
+  become_user: "{{ user }}"
+  lineinfile:
+    path: '/home/{{ user }}/.bash_profile'
+    line: 'export PATH=$PATH:/home/{{ user}}/go/bin'

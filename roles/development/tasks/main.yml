@@ -9,5 +9,11 @@
 - name: Import vscode
   import_tasks: vscode.yml
 
+- name: Import go
+  import_tasks: go.yml
+
 - name: Import nvm
   import_tasks: nvm.yml
+
+- name: Import mono
+  import_tasks: mono.yml

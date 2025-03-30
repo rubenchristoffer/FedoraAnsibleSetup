@@ -1,0 +1,65 @@
+---
+- name: clone sidewinderd
+  git:
+    repo: https://github.com/tolga9009/sidewinderd.git
+    dest: /setup/sidewinderd
+    update: no
+
+- name: set sidewinderd file permissions
+  file:
+    dest: /setup/sidewinderd
+    state: directory
+    owner: '{{ user }}'
+    group: '{{ user }}'
+    recurse: yes
+
+- name: install required dependencies
+  dnf:
+    name:
+    - cmake
+    - libconfig-devel
+    - tinyxml2-devel
+    - systemd-devel
+    - g++
+    state: present
+
+- name: create build directory
+  file:
+    path: /setup/sidewinderd/build
+    owner: '{{ user }}'
+    group: '{{ user }}'
+    state: directory
+
+- name: cmake sidewinderd
+  command: cmake ..
+  become: yes
+  become_user: '{{ user }}'
+  args:
+    chdir: /setup/sidewinderd/build
+    creates: /setup/sidewinderd/build/Makefile
+
+- name: make sidewinderd
+  command: make
+  become: yes
+  become_user: '{{ user }}'
+  args:
+    chdir: /setup/sidewinderd/build
+    creates: /setup/sidewinderd/build/src/sidewinderd
+
+- name: make install sidewinderd
+  command: make install
+  args:
+    chdir: /setup/sidewinderd/build
+    creates: /usr/local/bin/sidewinderd
+
+- name: configure sidewinderd
+  lineinfile:
+    path: /etc/sidewinderd.conf
+    regexp: '^capture_delays'
+    line: 'capture_delays = false;'
+
+- name: start sidewinderd
+  service:
+    name: sidewinderd
+    enabled: yes
+    state: started

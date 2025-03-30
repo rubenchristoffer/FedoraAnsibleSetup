@@ -21,9 +21,6 @@
     - role: base
       tags:
         - base 
-    - role: 3d_modelling
-      tags:
-        - 3d_modelling
     - role: browsers
       tags:
         - browsers
@@ -55,5 +52,19 @@
         - unity
     - role: virtualization
       tags:
-        - virtualization  
-
+        - virtualization
+    - role: 3d_modelling
+      tags:
+        - 3d_modelling
+    - role: games
+      tags:
+        - games
+    - role: cryptomator
+      tags:
+        - cryptomator
+    - role: syncthing
+      tags:
+        - syncthing
+    - role: sidewinderd
+      tags:
+        - sidewinderd

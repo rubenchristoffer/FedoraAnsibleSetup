@@ -1,0 +1,5 @@
+---
+- name: install mono complete
+  dnf:
+    name: mono-complete
+    state: latest

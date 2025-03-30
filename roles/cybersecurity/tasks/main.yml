@@ -1,0 +1,7 @@
+---
+- name: "install interactsh"
+  command: 'go install -v github.com/projectdiscovery/interactsh/cmd/interactsh-client@latest'
+  become: yes
+  become_user: '{{ user }}'
+  args:
+    creates: '/home/{{ user }}/go/bin/interactsh-client'

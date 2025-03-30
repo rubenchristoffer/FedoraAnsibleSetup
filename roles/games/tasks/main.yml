@@ -1,0 +1,5 @@
+- name: Install steam
+  dnf:
+    name:
+      - steam
+    state: present
