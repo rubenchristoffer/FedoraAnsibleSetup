@@ -4,8 +4,10 @@
       - python3-devel
       - maven
       - java-latest-openjdk-devel
-      - nvm
     state: present
 
 - name: Import vscode
   import_tasks: vscode.yml
+
+- name: Import nvm
+  import_tasks: nvm.yml
