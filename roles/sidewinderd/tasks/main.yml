@@ -2,12 +2,12 @@
 - name: clone sidewinderd
   git:
     repo: https://github.com/tolga9009/sidewinderd.git
-    dest: /setup/sidewinderd
+    dest: "{{ setupDir }}/sidewinderd"
     update: no
 
 - name: set sidewinderd file permissions
   file:
-    dest: /setup/sidewinderd
+    dest: "{{ setupDir }}/sidewinderd"
     state: directory
     owner: '{{ user }}'
     group: '{{ user }}'
@@ -25,7 +25,7 @@
 
 - name: create build directory
   file:
-    path: /setup/sidewinderd/build
+    path: "{{ setupDir }}/sidewinderd/build"
     owner: '{{ user }}'
     group: '{{ user }}'
     state: directory
@@ -35,28 +35,30 @@
   become: yes
   become_user: '{{ user }}'
   args:
-    chdir: /setup/sidewinderd/build
-    creates: /setup/sidewinderd/build/Makefile
+    chdir: "{{ setupDir }}/sidewinderd/build"
+    creates: "{{ setupDir }}/sidewinderd/build/Makefile"
 
 - name: make sidewinderd
   command: make
   become: yes
   become_user: '{{ user }}'
   args:
-    chdir: /setup/sidewinderd/build
-    creates: /setup/sidewinderd/build/src/sidewinderd
+    chdir: "{{ setupDir }}/sidewinderd/build"
+    creates: "{{ setupDir }}/sidewinderd/build/src/sidewinderd"
 
 - name: make install sidewinderd
   command: make install
   args:
-    chdir: /setup/sidewinderd/build
+    chdir: "{{ setupDir }}/sidewinderd/build"
     creates: /usr/local/bin/sidewinderd
 
 - name: configure sidewinderd
-  lineinfile:
-    path: /etc/sidewinderd.conf
-    regexp: '^capture_delays'
-    line: 'capture_delays = false;'
+  template:
+    src: sidewinderd.conf.j2
+    dest: /etc/sidewinderd.conf
+    owner: root
+    group: root
+    mode: '0644'
 
 - name: start sidewinderd
   service:

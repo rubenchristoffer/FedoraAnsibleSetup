@@ -1,7 +1,7 @@
-# Master playbook for Fedora setup
+# Master playbook for Fedora workstation setup
 
 ---
-- name: Fedora 
+- name: Fedora workstation automated setup
   hosts: localhost
 
   vars_prompt:
