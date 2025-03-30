@@ -8,12 +8,20 @@
 
 - name: Import vscode
   import_tasks: vscode.yml
+  tags:
+    - vscode
 
 - name: Import go
   import_tasks: go.yml
+  tags:
+    - go
 
 - name: Import nvm
   import_tasks: nvm.yml
+  tags:
+    - nvm
 
 - name: Import mono
   import_tasks: mono.yml
+  tags:
+    - mono

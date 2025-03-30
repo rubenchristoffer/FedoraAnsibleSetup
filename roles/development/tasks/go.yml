@@ -10,7 +10,7 @@
     line: 'export PATH=$PATH:/usr/local/go/bin'
 
 - name: add local go to local PATH
-  become: yes
+  become: true
   become_user: "{{ user }}"
   lineinfile:
     path: '/home/{{ user }}/.bash_profile'
