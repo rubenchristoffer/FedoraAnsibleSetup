@@ -1,5 +1,12 @@
 - name: Install common GNOME software
   dnf:
     name:
+      - gnome-tweaks
+      - gnome-extensions-app
       - evince
     state: present
+
+- name: import keybindings
+  import_tasks: keybindings.yml
+  tags:
+    - gnome-keybindings

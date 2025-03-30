@@ -26,6 +26,7 @@
       - ncdu
       - dconf-editor
       - thefuck
+      - gnome-terminal
     state: present
 
 - name: Import tasks from rpmfusion

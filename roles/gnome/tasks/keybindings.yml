@@ -1,0 +1,8 @@
+- name: Set dconf values
+  become: true
+  become_user: "{{ user }}"
+  dconf:
+    key: "{{ item.key }}"
+    value: "{{ item.value }}"
+    state: "{{ item.state }}"
+  with_items: "{{ gnome_dconf_values }}"
