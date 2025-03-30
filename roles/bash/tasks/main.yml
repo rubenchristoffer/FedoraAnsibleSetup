@@ -1,0 +1,27 @@
+---
+- name: add BASH aliases
+  lineinfile:
+    path: '/home/{{ user }}/.bashrc'
+    line: '{{ item }}'
+  with_items: "{{ user_bashrc_include_lines }}"
+
+- name: add BASH aliases for root
+  lineinfile:
+    path: '/root/.bashrc'
+    line: '{{ item }}'
+  with_items: "{{ root_bashrc_include_lines }}"
+    
+- name: add global settings
+  lineinfile:
+    path: /etc/inputrc
+    line: '{{ item }}'
+    create: yes
+  with_items: "{{ inputrc_include_lines }}"
+
+- name: include global settings in local settings
+  lineinfile:
+    path: '/home/{{ user }}/.inputrc'
+    line: '$include /etc/inputrc'
+    owner: '{{ user }}'
+    group: '{{ user }}'
+    create: yes

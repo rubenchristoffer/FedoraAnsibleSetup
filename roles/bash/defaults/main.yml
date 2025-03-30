@@ -1,0 +1,10 @@
+user_bashrc_include_lines:
+  - alias getip='curl ipecho.net/plain && echo'
+  - alias update-grub-bios='sudo grub2-mkconfig -o /boot/efi/EFI/fedora/grub.cfg'
+  - alias update-grub-uefi='sudo grub2-mkconfig -o /boot/grub2/grub.cfg'
+  - alias update-grub='update-grub-bios && update-grub-uefi'
+
+root_bashrc_include_lines: "{{ user_bashrc_include_lines }}"
+
+inputrc_include_lines:
+  - set completion-ignore-case On

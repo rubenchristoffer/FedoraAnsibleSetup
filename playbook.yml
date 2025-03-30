@@ -22,6 +22,10 @@
       tags:
         - base 
 
+    - role: bash
+      tags:
+        - bash
+
     - role: browsers
       tags:
         - browsers
