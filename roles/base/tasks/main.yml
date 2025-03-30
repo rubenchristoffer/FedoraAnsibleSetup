@@ -30,3 +30,5 @@
 
 - name: Import tasks from rpmfusion
   import_tasks: rpmfusion.yml
+  tags:
+    - rpmfusion

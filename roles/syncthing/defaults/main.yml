@@ -1,0 +1,1 @@
+syncthing_config_template: docker-compose.yml.j2

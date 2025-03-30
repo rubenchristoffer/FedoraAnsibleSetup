@@ -10,5 +10,5 @@
   become: true
   become_user: "{{ user }}"
   template:
-    src: docker-compose.yml.j2
+    src: "{{ syncthing_config_template }}"
     dest: '/home/{{ user }}/syncthing/docker-compose.yml'
