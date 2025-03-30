@@ -1,5 +1,16 @@
 - name: Install nvm
-  ansible.builtin.shell: >
+  shell: >
     curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.2/install.sh | bash
+  become: true
+  become_user: "{{ user }}"
   args:
-    creates: "{{ ansible_env.HOME }}/.nvm/nvm.sh"
+    creates: "~/.nvm/nvm.sh"
+
+- name: Install node
+  become: true
+  become_user: "{{ user }}"
+  shell: |
+    source ~/.nvm/nvm.sh
+    nvm install node
+  register: result
+  changed_when: "'Downloading and installing' in result.stdout"
