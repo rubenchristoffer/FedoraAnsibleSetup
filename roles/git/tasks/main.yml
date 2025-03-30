@@ -1,6 +1,3 @@
-- debug:
-    msg: "Setting up git global config with user: {{ git_global_user }} and email: {{ git_global_email }}"
-
 - name: set git config name (system)
   git_config:
     name: user.name
