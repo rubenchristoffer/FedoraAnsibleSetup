@@ -1,0 +1,6 @@
+- name: Install storage tools
+  dnf:
+    name:
+      - gparted
+      - ddrescue
+    state: present

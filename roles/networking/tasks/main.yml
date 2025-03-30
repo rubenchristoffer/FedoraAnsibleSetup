@@ -1,0 +1,6 @@
+- name: Install networking tools
+  dnf:
+    name: 
+      - nmap
+      - net-tools
+    state: present

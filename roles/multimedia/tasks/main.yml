@@ -1,0 +1,16 @@
+- name: Install multimedia packages
+  dnf:
+    name: 
+      - ffmpeg
+      - audacity
+      - strawberry
+      - vlc
+      - gimp
+    state: present
+
+- name: Install spotify
+  dnf:
+    name: 
+      - lpf-spotify-client
+    state: present
+    

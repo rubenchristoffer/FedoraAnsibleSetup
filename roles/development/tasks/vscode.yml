@@ -1,0 +1,27 @@
+---
+- name: "install vscode repository"
+  copy:
+    dest: /etc/yum.repos.d/vscode.repo
+    content: |
+      [code]
+      name=Visual Studio Code
+      baseurl=https://packages.microsoft.com/yumrepos/vscode
+      enabled=1
+      gpgcheck=1
+      gpgkey=https://packages.microsoft.com/keys/microsoft.asc
+
+- name: download microsoft gpg key
+  get_url:
+    url: https://packages.microsoft.com/keys/microsoft.asc
+    dest: /tmp/microsoftgpgkey
+    checksum: sha256:2cfd20a306b2fa5e25522d78f2ef50a1f429d35fd30bd983e2ebffc2b80944fa
+
+- name: import microsoft gpg key
+  rpm_key:
+    key: /tmp/microsoftgpgkey
+    state: present
+
+- name: install vscode
+  dnf:
+    name: code
+    state: present

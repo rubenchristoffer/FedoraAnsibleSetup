@@ -1,0 +1,7 @@
+- name: Install virtualization packages
+  dnf:
+    name:
+    - qemu
+    - qemu-img
+    - '@Virtualization'
+    state: present

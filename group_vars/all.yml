@@ -1,0 +1,5 @@
+fedora_version: 41
+hostname: "{{ user }}-pc"
+bluetooth_name: '{{ hostname }}'
+tmpdir: /tmp/fedora-setup
+

@@ -1,0 +1,11 @@
+- name: Install qbittorrent
+  dnf:
+    name:
+      - qbittorrent
+    state: present
+
+- name: Install youtube-dl
+  dnf:
+    name:
+      - youtube-dl
+    state: present

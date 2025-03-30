@@ -1,0 +1,11 @@
+- name: Install common development tools
+  dnf:
+    name:
+      - python3-devel
+      - maven
+      - java-latest-openjdk-devel
+      - nvm
+    state: present
+
+- name: Import vscode
+  import_tasks: vscode.yml

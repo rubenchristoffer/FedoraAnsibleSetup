@@ -1,0 +1,6 @@
+- name: Install browsers
+  dnf:
+    name: 
+      - firefox
+      - chromium
+      - torbrowser-launcher

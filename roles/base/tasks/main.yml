@@ -1,0 +1,32 @@
+- name: Update all packages to newest version
+  dnf:
+    name: "*"
+    state: latest
+  tags:
+    - update
+
+- name: Install common packages
+  dnf:
+    name:
+      - fastfetch
+      - vim
+      - nano
+      - unzip
+      - tree
+      - git
+      - openssh
+      - openssl
+      - p7zip
+      - python
+      - python3
+      - htop
+      - xclip
+      - rsync
+      - lolcat
+      - ncdu
+      - dconf-editor
+      - thefuck
+    state: present
+
+- name: Import tasks from rpmfusion
+  import_tasks: rpmfusion.yml

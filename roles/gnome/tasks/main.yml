@@ -1,0 +1,5 @@
+- name: Install common GNOME software
+  dnf:
+    name:
+      - evince
+    state: present
