@@ -47,6 +47,9 @@
       tags:
         - storage_tools
         - tools
+    - role: nvidia
+      tags:
+        - nvidia
     - role: unity
       tags:
         - unity

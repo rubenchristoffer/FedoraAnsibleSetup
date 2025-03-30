@@ -1,0 +1,22 @@
+- name: install nvidia drivers
+  dnf:
+    name:
+      - xorg-x11-drv-nvidia
+      - akmod-nvidia
+      - xorg-x11-drv-nvidia-cuda
+      - vulkan
+      - vdpauinfo
+      - libva-vdpau-driver
+      - libva-utils
+    state: present
+
+- name: remove nouveau drivers using command
+  command: dnf remove -y "*nouveau*"
+  register: result
+  changed_when: "'Nothing to do' not in result.stdout"
+
+- name: blacklist nouveau driver
+  lineinfile:
+    path: /etc/modprobe.d/blacklist.conf
+    line: "blacklist nouveau"
+    state: present
