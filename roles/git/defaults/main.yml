@@ -1,0 +1,8 @@
+git_system_user: "Example user"
+git_system_email: "user@example.com"
+
+git_global_user: "{{ git_system_user }}"
+git_global_email: "{{ git_system_email }}"
+
+git_global_user_root: "{{ git_global_user }}"
+git_global_email_root: "{{ git_global_email }}"

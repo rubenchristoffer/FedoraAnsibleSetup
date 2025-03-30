@@ -8,15 +8,21 @@
     - name: user
       prompt: "Enter linux user you want to configure for"
       private: no
+
+  vars_files:
+    - vars/custom.yml
+
   pre_tasks:
     - name: setup tmpdir
       file:
         path: '{{ tmpdir }}'
         state: directory
         recurse: yes
+
     - name: set hostname
       hostname:
         name: '{{ hostname }}'
+
   roles:
     - role: base
       tags:
@@ -25,6 +31,10 @@
     - role: bash
       tags:
         - bash
+
+    - role: git
+      tags:
+        - git
 
     - role: browsers
       tags:

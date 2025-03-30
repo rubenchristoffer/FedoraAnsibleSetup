@@ -1,0 +1,42 @@
+- debug:
+    msg: "Setting up git global config with user: {{ git_global_user }} and email: {{ git_global_email }}"
+
+- name: set git config name (system)
+  git_config:
+    name: user.name
+    scope: system
+    value: '{{ git_system_user }}'
+
+- name: set git config email (system)
+  git_config:
+    name: user.email
+    scope: system
+    value: '{{ git_system_email }}'
+
+- name: set git config name (global)
+  become: true
+  become_user: "{{ user }}"
+  git_config:
+    name: user.name
+    scope: global
+    value: '{{ git_global_user }}'
+
+- name: set git config email (global)
+  become: true
+  become_user: "{{ user }}"
+  git_config:
+    name: user.email
+    scope: global
+    value: '{{ git_global_email }}'
+
+- name : set git config name (global) for root user
+  git_config:
+    name: user.name
+    scope: global
+    value: '{{ git_global_user_root }}'
+
+- name: set git config email (global) for root user
+  git_config:
+    name: user.email
+    scope: global
+    value: '{{ git_global_email_root }}'
