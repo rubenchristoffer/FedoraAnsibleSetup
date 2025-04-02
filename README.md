@@ -1,5 +1,44 @@
 # Fedora Ansible Setup - Automate setup of your freshly installed workstation OS!
 
+This repository contains an Ansible playbook and roles to automate the setup of a Fedora workstation. It installs and configures essential software, tools, and settings tailored for developers, gamers, and general users. Each role is modular, allowing you to customize the setup based on your needs. I made this repository to automate my own workstation and thus there are some specific roles / functions you probably don't want or you want to change default values for. 
+
+*NOTE: There is variable you can set indicating fedora version, although I have only tested this playbook on Fedora Workstation 41*
+
+## How to use
+1. Clone repository
+1. Run `setup.sh` to install ansible and setup dependencies
+1. Use the command `run.sh [ANSIBLE_PLAYBOOK_ARGS]` to run playbook. `[ANSIBLE_PLAYBOOK_ARGS]` are used to specify extra args for the "ansible-playbook" command. Here you can specify --tags for instance to only run certain roles. 
+
+### Tagging system
+Each role has a tag corresponding with their name. Use this to filter which roles / functions you want to run. Some roles are quite specific to my setup, so make sure you only run the roles you actually want :)  
+Scroll down to see a list of all roles and their tags. 
+
+### Variables
+There is one prompt variable called "user". This is the linux user you want to configure for. If you don't want to manually enter the user every time, use the `-e` flag as shown in the examples. 
+
+Some roles have variables that you can override. Do this by creating a `vars/custom.yml` file and put all variables you want to override here. This file is ignored by git. 
+
+### Examples
+Run everything (you have to enter user): 
+```bash
+./run.sh
+```
+
+Run everything with user specified:
+```bash
+./run.sh -e "user=my_fedora_user"
+```
+
+Run only the specified tags: 
+```bash
+./run.sh -e "user=my_fedora_user" --tags "base,browsers"
+```
+
+Run everything except the specified tags:  
+```bash
+./run.sh -e "user=my_fedora_user" --skip-tags "base,browsers"
+```
+
 ## Full list of all roles
 
 ### 3D Modelling
