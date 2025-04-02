@@ -206,7 +206,9 @@ Installs GNOME tools like GNOME Tweaks and Extensions, and configures custom key
   ```
 
 ### Grub
-Configures GRUB bootloader settings and updates the GRUB configuration.
+Configures GRUB bootloader settings and updates the GRUB configuration. I use Intel IOMMU + ACS override patching for my default grub configuration, so you might want to change this by pointing the default_grub_template variable to another file.
+
+*Small note: If you want to download patched linux kernels for Fedora that support acs, there is a great repo by Natalie [here](https://github.com/some-natalie/fedora-acs-override)*.
 
 **Tags:**
 - `grub`
