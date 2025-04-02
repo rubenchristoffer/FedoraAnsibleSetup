@@ -1,7 +1,7 @@
 # Fedora Ansible Setup
 *Automate setup of your freshly installed workstation OS!* 😎
 
-This repository contains an Ansible playbook and roles to automate the setup of a Fedora workstation. It installs and configures essential software, tools, and settings tailored for developers, gamers, and general users. Each role is modular, allowing you to customize the setup based on your needs. I made this repository to automate my own workstation and thus there are some specific roles / functions you probably don't want or you want to change default values for. 
+This repository contains an Ansible playbook and roles to automate the setup of a Fedora workstation. It installs and configures essential software, tools, and settings tailored for developers, gamers, and general users. Each role is modular, allowing you to customize the setup based on your needs. I made this repository to automate my own workstation, and thus there are some specific roles / functions you probably don't want or you want to change default values for. 
 
 *NOTE: There is variable you can set indicating fedora version, although I have only tested this playbook on Fedora Workstation 41*
 
