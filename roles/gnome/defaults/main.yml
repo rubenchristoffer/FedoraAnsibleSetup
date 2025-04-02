@@ -1,10 +1,13 @@
+mediakeys_path: '/org/gnome/settings-daemon/plugins/media-keys'
 gnome_dconf_values:
   # Desktop keybindings
   - { key: "/org/gnome/desktop/wm/keybindings/show-desktop", value: "['<Super>d']", state: "present" }
 
   # Media keys
-  - { key: "/org/gnome/settings-daemon/plugins/media-keys/calculator", value: "['<Super>c']", state: "present" }
-  - { key: "/org/gnome/settings-daemon/plugins/media-keys/home", value: "['<Super>e']", state: "present" }
+  - { key: "{{ mediakeys_path }}/calculator", value: "['<Super>c']", state: "present" }
+  - { key: "{{ mediakeys_path }}/home", value: "['<Super>e']", state: "present" }
+  - { key: "{{ mediakeys_path }}/volume-down", value: "['<Control><Super>Down']", state: "present" }
+  - { key: "{{ mediakeys_path }}/volume-up", value: "['<Control><Super>Up']", state: "present" }
 
 keybind_path: '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings'
 custom_keybindings:

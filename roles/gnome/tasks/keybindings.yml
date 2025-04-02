@@ -23,7 +23,7 @@
       }{% if not loop.last %}, {% endif %}
       {% endfor %}]
 
-- name: Set keybinding mappings
+- name: Set custom keybinding mappings
   become: true
   become_user: "{{ user }}"
   dconf:
