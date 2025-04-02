@@ -7,21 +7,7 @@ gnome_dconf_values:
   - { key: "/org/gnome/settings-daemon/plugins/media-keys/calculator", value: "['<Super>c']", state: "present" }
   - { key: "/org/gnome/settings-daemon/plugins/media-keys/home", value: "['<Super>e']", state: "present" }
 
-  # Custom keybindings
-  - { 
-      key: "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings", 
-      value: "['{{ keybind_path }}/custom0/', '{{ keybind_path }}/custom1/', '{{ keybind_path }}/custom2/']", 
-      state: "present"  
-    }
-
-  - { key: "{{ keybind_path  }}/custom0/name", value: "'terminal'", state: "present" }
-  - { key: "{{ keybind_path  }}/custom0/command", value: "'gnome-terminal'", state: "present" }
-  - { key: "{{ keybind_path  }}/custom0/binding", value: "'<Control><Alt>t'", state: "present" }
-
-  - { key: "{{ keybind_path  }}/custom1/name", value: "'cryptomator'", state: "present" }
-  - { key: "{{ keybind_path  }}/custom1/command", value: "'~/Desktop/Cryptomator.App'", state: "present" }
-  - { key: "{{ keybind_path  }}/custom1/binding", value: "'<Super>k'", state: "present" }
-
-  - { key: "{{ keybind_path  }}/custom2/name", value: "'unityhub'", state: "present" }
-  - { key: "{{ keybind_path  }}/custom2/command", value: "'unityhub'", state: "present" }
-  - { key: "{{ keybind_path  }}/custom2/binding", value: "'<Super>u'", state: "present" }
+custom_keybindings:
+  - { name: "terminal", command: "gnome-terminal", binding: "<Control><Alt>t" }
+  - { name: "cryptomator", command: "~/Desktop/Cryptomator.App", binding: "<Super>k" }
+  - { name: "unityhub", command: "unityhub", binding: "<Super>u" }

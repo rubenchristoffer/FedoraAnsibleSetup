@@ -1,3 +1,28 @@
+# Note: Some variables are surrounded by extra single quotes to ensure dconf accepts them
+- name: Generate custom keybinding paths with metadata
+  set_fact:
+    combined_keybindings: >-
+      [{% for i in range(custom_keybindings | length) %}
+      {
+        "name": "'{{ custom_keybindings[i].name }}'",
+        "command": "'{{ custom_keybindings[i].command }}'",
+        "binding": "'{{ custom_keybindings[i].binding }}'",
+        "path": "'{{ keybind_path }}/custom{{ i }}/'",
+        "nameKey": "{{ keybind_path }}/custom{{ i }}/name",
+        "commandKey": "{{ keybind_path }}/custom{{ i }}/command",
+        "bindingKey": "{{ keybind_path }}/custom{{ i }}/binding"
+      }{% if not loop.last %}, {% endif %}
+      {% endfor %}]
+
+- name: debug
+  debug:
+    msg: "{{ combined_keybindings }}"
+
+- name: debug
+  debug:
+    msg: "{{ item.nameKey }} {{ item.name }}"
+  with_items: "{{ combined_keybindings}}"
+
 - name: Set dconf values
   become: true
   become_user: "{{ user }}"
@@ -6,3 +31,38 @@
     value: "{{ item.value }}"
     state: "{{ item.state }}"
   with_items: "{{ gnome_dconf_values }}"
+
+- name: Set keybinding mappings
+  become: true
+  become_user: "{{ user }}"
+  dconf:
+    key: "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings"
+    value: "[{{ combined_keybindings | map(attribute='path') | list | join(', ') }}]"
+    state: present
+
+- name: Set individual custom keybindings for name
+  become: true
+  become_user: "{{ user }}"
+  dconf:
+    key: "{{ item.nameKey }}"
+    value: "{{ item.name }}"
+    state: present
+  with_items: "{{ combined_keybindings }}"
+
+- name: Set individual custom keybindings for command
+  become: true
+  become_user: "{{ user }}"
+  dconf:
+    key: "{{ item.commandKey }}"
+    value: "{{ item.command }}"
+    state: present
+  with_items: "{{ combined_keybindings }}"
+
+- name: Set individual custom keybindings for binding
+  become: true
+  become_user: "{{ user }}"
+  dconf:
+    key: "{{ item.bindingKey }}"
+    value: "{{ item.binding }}"
+    state: present
+  with_items: "{{ combined_keybindings }}"
