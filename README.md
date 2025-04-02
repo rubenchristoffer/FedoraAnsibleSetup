@@ -8,7 +8,9 @@ This repository contains an Ansible playbook and roles to automate the setup of 
 ## How to use
 1. Clone repository
 1. Run `setup.sh` to install ansible and setup dependencies
-1. Use the command `run.sh [ANSIBLE_PLAYBOOK_ARGS]` to run playbook. `[ANSIBLE_PLAYBOOK_ARGS]` are used to specify extra args for the "ansible-playbook" command. Here you can specify --tags for instance to only run certain roles. 
+1. Use the command `run.sh [ANSIBLE_PLAYBOOK_ARGS]` to run playbook. [ANSIBLE_PLAYBOOK_ARGS] are used to specify extra args for the "ansible-playbook" command. Here you can specify --tags for instance to only run certain roles. 
+1. Grab yourself a cup of coffee and go outside and watch the sunset 🌇
+1. Come back a little later to find your fedora system all configured! (or you will see a giant, red error message ruining your evening...)
 
 ### Tagging system
 Each role has a tag corresponding with their name. Use this to filter which roles / functions you want to run. Some roles are quite specific to my setup, so make sure you only run the roles you actually want :)  
