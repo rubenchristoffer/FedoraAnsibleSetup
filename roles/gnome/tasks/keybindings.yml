@@ -1,3 +1,12 @@
+- name: Set dconf values
+  become: true
+  become_user: "{{ user }}"
+  dconf:
+    key: "{{ item.key }}"
+    value: "{{ item.value }}"
+    state: "{{ item.state }}"
+  with_items: "{{ gnome_dconf_values }}"
+
 # Note: Some variables are surrounded by extra single quotes to ensure dconf accepts them
 - name: Generate custom keybinding paths with metadata
   set_fact:
@@ -13,24 +22,6 @@
         "bindingKey": "{{ keybind_path }}/custom{{ i }}/binding"
       }{% if not loop.last %}, {% endif %}
       {% endfor %}]
-
-- name: debug
-  debug:
-    msg: "{{ combined_keybindings }}"
-
-- name: debug
-  debug:
-    msg: "{{ item.nameKey }} {{ item.name }}"
-  with_items: "{{ combined_keybindings}}"
-
-- name: Set dconf values
-  become: true
-  become_user: "{{ user }}"
-  dconf:
-    key: "{{ item.key }}"
-    value: "{{ item.value }}"
-    state: "{{ item.state }}"
-  with_items: "{{ gnome_dconf_values }}"
 
 - name: Set keybinding mappings
   become: true
