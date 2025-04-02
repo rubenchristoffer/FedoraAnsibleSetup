@@ -56,7 +56,6 @@
     - role: gnome
       tags:
         - gnome
-        - gnome-keybindings
 
     - role: multimedia
       tags:
