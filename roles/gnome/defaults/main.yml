@@ -1,4 +1,3 @@
-keybind_path: '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings'
 gnome_dconf_values:
   # Desktop keybindings
   - { key: "/org/gnome/desktop/wm/keybindings/show-desktop", value: "['<Super>d']", state: "present" }
@@ -7,6 +6,7 @@ gnome_dconf_values:
   - { key: "/org/gnome/settings-daemon/plugins/media-keys/calculator", value: "['<Super>c']", state: "present" }
   - { key: "/org/gnome/settings-daemon/plugins/media-keys/home", value: "['<Super>e']", state: "present" }
 
+keybind_path: '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings'
 custom_keybindings:
   - { name: "terminal", command: "gnome-terminal", binding: "<Control><Alt>t" }
   - { name: "cryptomator", command: "~/Desktop/Cryptomator.App", binding: "<Super>k" }
