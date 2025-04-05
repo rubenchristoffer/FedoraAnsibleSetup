@@ -292,3 +292,13 @@ Installs virtualization tools like QEMU and Docker for managing virtual machines
 
 **Default Variables:**
 - `user`: _Prompted during execution_
+
+### Fstab
+Configures mounting points by creating directories and adding entries to `/etc/fstab`.
+
+**Tags:**
+- `fstab`
+
+**Default Variables:**
+- `fstab_entries`: `[]`
+- `mounting_folders`: `[]`
