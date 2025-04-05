@@ -1,0 +1,9 @@
+# Example:
+#  - 'UUID=A1B2C3D4E5F60789 /hdd1 ntfs-3g permissions 0 0'
+#  - 'UUID=1A2B3C4D5E6F7089 /hdd2 ntfs-3g permissions 0 0'
+fstab_entries: []
+
+# Example:
+#  - /hdd1
+#  - /hdd2
+mounting_folders: []

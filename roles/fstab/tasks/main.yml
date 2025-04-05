@@ -1,0 +1,11 @@
+- name: create mounting folders
+  file:
+    path: '/{{ item }}'
+    state: directory
+  with_items: "{{ mounting_folders }}"
+
+- name: add mounting points to fstab
+  lineinfile:
+    path: /etc/fstab
+    line: '{{ item }}'
+  with_items: "{{ fstab_entries  }}"

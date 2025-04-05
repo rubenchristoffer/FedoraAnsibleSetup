@@ -40,6 +40,10 @@
       tags:
         - browsers
 
+    - role: fstab
+      tags:
+        - fstab
+
     - role: development
       tags:
         - development
