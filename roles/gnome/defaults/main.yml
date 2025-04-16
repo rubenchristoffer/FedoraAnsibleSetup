@@ -1,4 +1,7 @@
 mediakeys_path: '/org/gnome/settings-daemon/plugins/media-keys'
+power_path: '/org/gnome/settings-daemon/plugins/power'
+shell_path: '/org/gnome/shell'
+
 gnome_dconf_values:
   # Desktop keybindings
   - { key: "/org/gnome/desktop/wm/keybindings/show-desktop", value: "['<Super>d']", state: "present" }
@@ -8,6 +11,14 @@ gnome_dconf_values:
   - { key: "{{ mediakeys_path }}/home", value: "['<Super>e']", state: "present" }
   - { key: "{{ mediakeys_path }}/volume-down", value: "['<Control><Super>Down']", state: "present" }
   - { key: "{{ mediakeys_path }}/volume-up", value: "['<Control><Super>Up']", state: "present" }
+
+  # Power settings
+
+  ## Don't go into sleep mode (ever)
+  - { key: "{{ power_path  }}/sleep-inactive-ac-type", value: "'nothing'", state: "present" }
+
+  ## Set power button action to power off
+  - { key: "{{ power_path  }}/power-button-action", value: "'interactive'", state: "present" }
 
 keybind_path: '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings'
 custom_keybindings:
