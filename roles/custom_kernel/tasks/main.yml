@@ -1,0 +1,4 @@
+- name: Exclude kernel packages from DNF
+  lineinfile:
+    path: /etc/dnf/dnf.conf
+    line: 'excludepkgs=kernel*'

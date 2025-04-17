@@ -113,3 +113,7 @@
     - role: grub
       tags:
         - grub
+
+    - role: custom_kernel
+      tags:
+        - custom_kernel
