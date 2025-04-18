@@ -284,11 +284,19 @@ Installs Unity Hub, a tool for managing Unity game engine installations.
 _None_
 
 ### Virtualization
-Installs virtualization tools like QEMU and Docker for managing virtual machines and containers.
+Installs virtualization tools like QEMU and Docker for managing virtual machines and containers.  
+Additionally, this role includes scripts and tools for GPU passthrough setup, such as:
+- `passthrough_helper_fedora`
+- `IOMMU-viewer`
+- `Scream` (audio streaming for VMs)
+- `vfio-pci-bind`
+
+It also downloads the VirtIO drivers ISO for Windows virtual machines.
 
 **Tags:**
 - `virtualization`
 - `docker`
+- `passthrough`
 
 **Default Variables:**
 - `user`: _Prompted during execution_

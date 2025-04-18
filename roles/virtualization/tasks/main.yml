@@ -10,3 +10,8 @@
   import_tasks: docker.yml
   tags:
     - docker
+
+- name: Import passthrough
+  import_tasks: passthrough.yml
+  tags:
+    - passthrough
