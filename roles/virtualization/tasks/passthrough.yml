@@ -50,3 +50,25 @@
     path: "{{ item.path }}"
     mode: u+x,g+x,o+x
   with_items: "{{ output.files }}"
+
+- name: add vfio driver config to dracut
+  copy:
+    src: dracut_vfio.conf
+    dest: /etc/dracut.conf.d/vfio.conf
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: add vfio driver config to modprobe
+  template:
+    src: modprobe_vfio.conf.j2
+    dest: /etc/modprobe.d/vfio.conf
+    owner: root
+    group: root
+    mode: '0644'
+  when: vfio_pci_gpu_ids is defined
+
+- name: Update initramfs
+  command: dracut -f
+  register: dracut_result
+  changed_when: dracut_result.stdout != ""

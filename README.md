@@ -300,6 +300,7 @@ It also downloads the VirtIO drivers ISO for Windows virtual machines.
 
 **Default Variables:**
 - `user`: _Prompted during execution_
+- `vfio_pci_gpu_ids`: Ids that should force bind to vfio-driver (to use for GPU passthrough). Run `lspci -nn | grep -E 'VGA|3D'` to get IDs (look at values in square brackets near end of output). Example: '1002:73bf'. 
 
 ### Fstab
 Configures mounting points by creating directories and adding entries to `/etc/fstab`.
