@@ -24,6 +24,10 @@
         name: '{{ hostname }}'
 
   roles:
+    - role: custom_kernel
+      tags:
+        - custom_kernel
+
     - role: base
       tags:
         - base 
@@ -113,7 +117,3 @@
     - role: grub
       tags:
         - grub
-
-    - role: custom_kernel
-      tags:
-        - custom_kernel
