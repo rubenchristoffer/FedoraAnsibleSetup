@@ -302,3 +302,9 @@ Configures mounting points by creating directories and adding entries to `/etc/f
 **Default Variables:**
 - `fstab_entries`: `[]`
 - `mounting_folders`: `[]`
+
+### Custom Kernel
+Currently just excludes kernel updates from DNF config
+
+**Tags:**
+- `custom_kernel`
