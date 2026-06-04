@@ -1,0 +1,61 @@
+---
+# Backup / Restore Playbook
+#
+# BACKUP:
+#   ansible-playbook backup.yml
+#   (enter mode 'backup' when prompted)
+#
+# RESTORE:
+#   ansible-playbook backup.yml
+#   (enter mode 'restore' and provide the backup name / pc-id to restore from)
+#
+# OVERRIDE examples:
+#   ansible-playbook backup.yml -e "backup_mode=backup user=john"
+#   ansible-playbook backup.yml -e "backup_mode=restore backup_restore_name=john-pc user=john"
+#
+# CONFIGURATION:
+#   roles/backup/defaults/main.yml  — remote host, pre-defined paths, scan patterns
+
+- name: Backup / Restore
+  hosts: localhost
+  gather_facts: true
+
+  vars_files:
+    - vars/custom.yml
+
+  vars_prompt:
+    - name: user
+      prompt: "Linux user to backup for"
+      private: no
+
+    - name: backup_mode
+      prompt: "Mode [backup/restore]"
+      private: no
+      default: "backup"
+
+    - name: backup_restore_name
+      prompt: "Restore from backup name (pc-id/hostname, required for restore — press Enter to skip)"
+      private: no
+      default: ""
+
+  pre_tasks:
+    - name: Validate backup_mode value
+      fail:
+        msg: "backup_mode must be 'backup' or 'restore', got: '{{ backup_mode }}'"
+      when: backup_mode not in ['backup', 'restore']
+
+    - name: Validate backup_restore_name is provided for restore mode
+      fail:
+        msg: |
+          Restore mode requires 'backup_restore_name'.
+          Re-run the playbook and enter the PC hostname/id of the backup to restore from.
+          To list available backups, run:
+            ssh -p <port> <user>@<remote_host> ls <backup_remote_base_path>/
+      when:
+        - backup_mode == 'restore'
+        - backup_restore_name == ''
+
+  roles:
+    - role: backup
+      tags:
+        - backup

@@ -1,0 +1,70 @@
+---
+# Phase 2: Smart scan
+#
+# Recursively searches backup_scan_paths for files whose basenames match any
+# of the regex patterns in backup_scan_patterns. Results are then filtered to
+# remove items already covered by a pre-defined backup path (deduplication).
+#
+# backup_scan_mode controls what ends up in the backup list:
+#   file   — include the matched file path itself
+#   folder — include the matched file's parent directory (unique dirs only)
+#
+# Result: backup_scan_items — deduplicated list of additional paths to backup.
+
+- name: "Initialize backup_scan_items as empty list"
+  set_fact:
+    backup_scan_items: []
+
+- name: "Scan filesystem for files matching backup_scan_patterns"
+  find:
+    paths: "{{ backup_scan_paths }}"
+    patterns: "{{ backup_scan_patterns }}"
+    use_regex: yes
+    recurse: yes
+    file_type: file
+    excludes: "{{ backup_scan_dir_excludes }}"
+    hidden: yes
+  register: _scan_raw
+
+- name: "Extract and sort matched file paths"
+  set_fact:
+    _scan_all_paths: "{{ _scan_raw.files | map(attribute='path') | sort | list }}"
+
+- name: "Build candidate list (mode: file) — use matched file paths as-is"
+  set_fact:
+    _scan_candidate_paths: "{{ _scan_all_paths }}"
+  when: backup_scan_mode == 'file'
+
+- name: "Build candidate list (mode: folder) — use parent directory of each match"
+  set_fact:
+    _scan_candidate_paths: "{{ _scan_all_paths | map('dirname') | unique | sort | list }}"
+  when: backup_scan_mode == 'folder'
+
+# Remove candidates that are already covered by a pre-defined path.
+# A candidate is "covered" if it is equal to, or a child of, any pre-defined path.
+# Uses Python regex: ^(escaped_path1|escaped_path2)(/.*)?$
+- name: "Deduplicate: remove scan candidates already covered by pre-defined paths"
+  set_fact:
+    backup_scan_items: >-
+      {{
+        _scan_candidate_paths
+        | reject('match',
+            '^(' +
+            (backup_predefined_items | map(attribute='path') | map('regex_escape') | join('|')) +
+            ')(/.*)?$'
+          )
+        | list
+      }}
+  when: backup_predefined_items | length > 0
+
+- name: "Set scan items (no pre-defined items to compare against)"
+  set_fact:
+    backup_scan_items: "{{ _scan_candidate_paths }}"
+  when: backup_predefined_items | length == 0
+
+- name: "Smart scan complete"
+  debug:
+    msg:
+      - "Files matched by patterns : {{ _scan_all_paths | length }}"
+      - "Scan mode                 : {{ backup_scan_mode }}"
+      - "Additional items to backup: {{ backup_scan_items | length }} (after deduplication)"

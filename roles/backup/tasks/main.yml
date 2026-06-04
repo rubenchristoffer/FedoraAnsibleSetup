@@ -1,0 +1,34 @@
+---
+- name: "[INFO] Running in {{ backup_mode | upper }} mode"
+  debug:
+    msg:
+      - "Mode         : {{ backup_mode | upper }}"
+      - "PC identity  : {{ backup_pc_id }}"
+      - "Remote       : {{ backup_remote_user }}@{{ backup_remote_host }}:{{ backup_remote_base_path }}"
+      - "Remote port  : {{ backup_remote_port }}"
+
+# ─── BACKUP ──────────────────────────────────────────────────────────────────
+
+- name: Run backup flow
+  when: backup_mode == 'backup'
+  block:
+    - name: "Phase 1 — Validate pre-defined backup paths"
+      import_tasks: validate.yml
+
+    - name: "Phase 2 — Smart scan for files matching configured patterns"
+      import_tasks: scan.yml
+      when: backup_scan_enabled | bool
+
+    - name: "Phase 3 — Build final item list and show pre-flight summary"
+      import_tasks: summarize.yml
+
+    - name: "Phase 4 — Execute backup"
+      import_tasks: do_backup.yml
+
+# ─── RESTORE ─────────────────────────────────────────────────────────────────
+
+- name: Run restore flow
+  when: backup_mode == 'restore'
+  block:
+    - name: "Restore from remote backup: {{ backup_restore_name }}"
+      import_tasks: restore.yml

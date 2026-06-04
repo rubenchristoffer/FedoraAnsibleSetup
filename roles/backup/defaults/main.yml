@@ -1,0 +1,141 @@
+---
+# =============================================================================
+# Remote host configuration
+# =============================================================================
+
+# SSH user on the remote backup server
+backup_remote_user: "backup"
+
+# Remote host (hostname or IP address)
+backup_remote_host: "your-nas-or-server.local"
+
+# SSH port on the remote host
+backup_remote_port: 22
+
+# Base path on the remote host where all backups are stored
+backup_remote_base_path: "/backups"
+
+# =============================================================================
+# PC identity
+#
+# The unique folder name for this machine's backups on the remote host.
+# Defaults to the machine hostname. Subsequent backups from the same machine
+# always go to the same remote folder, adding/updating changed files.
+#
+# Override with -e "backup_pc_id=my-custom-id" if needed.
+# =============================================================================
+backup_pc_id: "{{ ansible_hostname }}"
+
+# =============================================================================
+# Pre-defined backup paths
+#
+# Paths guaranteed to be included in every backup.
+# Paths that do not exist on disk are skipped with a warning — no error.
+#
+# Each entry:
+#   path: (required) absolute path to a file or directory
+#   desc: (optional) human-readable description shown in the summary
+# =============================================================================
+backup_paths:
+  - path: "/home/{{ user }}/.ssh"
+    desc: "SSH keys"
+  - path: "/home/{{ user }}/.gnupg"
+    desc: "GPG keys"
+  - path: "/home/{{ user }}/.config"
+    desc: "User application configs"
+  - path: "/home/{{ user }}/Documents"
+    desc: "Documents"
+  - path: "/home/{{ user }}/.bashrc"
+    desc: "Bash config"
+  - path: "/home/{{ user }}/.bash_profile"
+    desc: "Bash profile"
+  - path: "/home/{{ user }}/.profile"
+    desc: "Shell profile"
+  - path: "/etc/hosts"
+    desc: "Hosts file"
+  - path: "/etc/fstab"
+    desc: "Filesystem table"
+
+# =============================================================================
+# Smart scan configuration
+#
+# Recursively scans backup_scan_paths for files whose basenames match any of
+# the regex patterns in backup_scan_patterns. Runs AFTER pre-defined path
+# validation — scan results that are already covered by a pre-defined path
+# are automatically deduplicated.
+# =============================================================================
+
+# Enable or disable the smart scan phase
+backup_scan_enabled: true
+
+# Root directories to recursively scan
+backup_scan_paths:
+  - "/home/{{ user }}"
+
+# Python regex patterns matched against file basenames.
+# A file is included if its basename matches ANY of these patterns.
+backup_scan_patterns:
+  - "^\\.env$"
+  - "^\\.envrc$"
+  - ".*\\.env$"
+  - ".*\\.pem$"
+  - ".*\\.key$"
+  - ".*\\.p12$"
+  - ".*\\.pfx$"
+  - ".*secrets.*\\.ya?ml$"
+  - ".*credentials(\\.json)?$"
+  - "^\\.netrc$"
+  - ".*_rsa$"
+  - ".*_ed25519$"
+  - ".*_ecdsa$"
+  - ".*_dsa$"
+
+# Directory basenames to skip during scan traversal (Python regex, use_regex: yes).
+# These prevent descending into heavy or irrelevant directories.
+backup_scan_dir_excludes:
+  - "^\\.git$"
+  - "^node_modules$"
+  - "^__pycache__$"
+  - "^\\.cache$"
+  - "^Cache$"
+  - "^cache$"
+  - "^\\.Trash.*$"
+  - "^tmp$"
+  - "^Trash$"
+  - "^\\.local$"
+
+# What to include in the backup when a scan match is found:
+#   file   — back up only the matched file itself
+#   folder — back up the entire parent directory of the matched file
+backup_scan_mode: "file"
+
+# =============================================================================
+# rsync options
+# =============================================================================
+
+# Extra rsync flags appended to every rsync call.
+# -a, -z, -R are always added automatically. Do not repeat them here.
+backup_rsync_extra_opts: "--progress --stats"
+
+# Pass --delete to rsync so files removed locally are also removed from backup.
+# Caution: deleted local files will be permanently removed from the backup too.
+backup_rsync_delete: false
+
+# Run rsync with become (sudo). Required when backing up files only root can
+# read (e.g. /etc/shadow). Ensure the SSH key is configured for the root user
+# on the remote backup server, or set backup_rsync_become: false and handle
+# permissions another way.
+backup_rsync_become: false
+
+# =============================================================================
+# Restore configuration
+# =============================================================================
+
+# Destination root for restore. Defaults to / which restores everything back
+# to its original absolute path. Set to e.g. /tmp/restore-test/ to do a safe
+# dry-run restore without overwriting live files.
+backup_restore_dest: "/"
+
+# Run restore rsync with become (sudo). Recommended true when restoring system
+# paths such as /etc/. Requires the restore-running user to have sudo access.
+backup_restore_become: true

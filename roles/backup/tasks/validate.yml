@@ -1,0 +1,34 @@
+---
+# Phase 1: Validate pre-defined backup paths
+# Checks each path in backup_paths. Missing paths are skipped with a warning.
+# Result: backup_predefined_items — list of entries that actually exist on disk.
+
+- name: "Stat each pre-defined backup path"
+  stat:
+    path: "{{ item.path }}"
+  register: _backup_path_stats
+  loop: "{{ backup_paths }}"
+  loop_control:
+    label: "{{ item.path }}"
+
+- name: "Warn about pre-defined paths that do not exist (they will be skipped)"
+  debug:
+    msg: "SKIP (not found): {{ item.item.path }}  [{{ item.item.desc | default('no description') }}]"
+  loop: "{{ _backup_path_stats.results }}"
+  loop_control:
+    label: "{{ item.item.path }}"
+  when: not item.stat.exists
+
+- name: "Build list of existing pre-defined paths"
+  set_fact:
+    backup_predefined_items: >-
+      {{
+        _backup_path_stats.results
+        | selectattr('stat.exists')
+        | map(attribute='item')
+        | list
+      }}
+
+- name: "Pre-defined paths validated: {{ backup_predefined_items | length }} of {{ backup_paths | length }} exist"
+  debug:
+    msg: "{{ backup_predefined_items | length }} pre-defined path(s) confirmed on disk."

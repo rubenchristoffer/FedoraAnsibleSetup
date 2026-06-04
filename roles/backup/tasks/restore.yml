@@ -1,0 +1,115 @@
+---
+# Restore: sync a named backup from the remote host back to this machine.
+#
+# How it works:
+#   Backup uses rsync -R (--relative) which preserves full absolute paths on
+#   the remote, e.g.: /backups/<pc-id>/home/user/.ssh/id_rsa
+#   Restoring syncs the entire <pc-id>/ folder back to backup_restore_dest
+#   (default: /), which reconstructs every file at its original absolute path.
+#
+# backup_restore_dest can be changed to e.g. /tmp/restore-preview/ for a
+# safe test restore that does not touch live system files.
+
+- name: "Set restore source path"
+  set_fact:
+    _restore_remote_src: >-
+      {{ backup_remote_user }}@{{ backup_remote_host }}:{{ backup_remote_base_path }}/{{ backup_restore_name }}/
+
+# ─── Verify remote backup exists ─────────────────────────────────────────────
+
+- name: "Check remote backup directory exists"
+  shell: >
+    ssh -p {{ backup_remote_port }}
+    -o BatchMode=yes
+    -o StrictHostKeyChecking=accept-new
+    {{ backup_remote_user }}@{{ backup_remote_host }}
+    "test -d {{ backup_remote_base_path }}/{{ backup_restore_name }} && echo EXISTS"
+  register: _remote_exists_check
+  failed_when: false
+  changed_when: false
+
+- name: "Fail if remote backup is not found"
+  fail:
+    msg: |
+      Remote backup not found: {{ backup_remote_base_path }}/{{ backup_restore_name }}
+      on {{ backup_remote_user }}@{{ backup_remote_host }}
+
+      To list available backups, run:
+        ssh -p {{ backup_remote_port }} {{ backup_remote_user }}@{{ backup_remote_host }} \
+          ls {{ backup_remote_base_path }}/
+  when: _remote_exists_check.rc != 0 or 'EXISTS' not in _remote_exists_check.stdout
+
+# ─── List backup contents for user review ────────────────────────────────────
+
+- name: "List top-level contents of remote backup"
+  shell: >
+    ssh -p {{ backup_remote_port }}
+    -o BatchMode=yes
+    {{ backup_remote_user }}@{{ backup_remote_host }}
+    "find {{ backup_remote_base_path }}/{{ backup_restore_name }}
+     -maxdepth 4 -mindepth 1 \( -type f -o -type d \)
+     | sort | head -60"
+  register: _remote_listing
+  failed_when: false
+  changed_when: false
+
+- name: "Remote backup contents (up to 60 entries)"
+  debug:
+    msg: "{{ _remote_listing.stdout_lines }}"
+
+# ─── Dry-run to preview what will be restored ────────────────────────────────
+
+- name: "Dry-run restore (preview only — no files written)"
+  shell: >
+    rsync -avz --dry-run
+    -e "ssh -p {{ backup_remote_port }} -o BatchMode=yes"
+    {{ _restore_remote_src | quote }}
+    {{ backup_restore_dest | quote }}
+  become: "{{ backup_restore_become | bool }}"
+  register: _restore_dryrun
+  changed_when: false
+
+- name: "Dry-run output (files that WOULD be restored)"
+  debug:
+    msg: "{{ _restore_dryrun.stdout_lines }}"
+
+# ─── Confirmation ─────────────────────────────────────────────────────────────
+
+- name: "RESTORE PLAN"
+  debug:
+    msg:
+      - "════════════════════════════════════════════════"
+      - "  RESTORE PLAN"
+      - "════════════════════════════════════════════════"
+      - "  Source      : {{ _restore_remote_src }}"
+      - "  Destination : {{ backup_restore_dest }}"
+      - "  Note: files will be written to their original absolute paths."
+      - "  Change backup_restore_dest to /tmp/restore-test/ to preview safely."
+      - "════════════════════════════════════════════════"
+
+- name: "Confirm — press ENTER to start restore or Ctrl+C → A to abort"
+  pause:
+    prompt: |
+      Review the dry-run output above.
+      Press ENTER to start the restore, or Ctrl+C then A to abort
+
+# ─── Execute restore ──────────────────────────────────────────────────────────
+
+- name: "Restore backup from remote"
+  shell: >
+    rsync -avz
+    -e "ssh -p {{ backup_remote_port }} -o BatchMode=yes -o StrictHostKeyChecking=accept-new"
+    {{ _restore_remote_src | quote }}
+    {{ backup_restore_dest | quote }}
+  become: "{{ backup_restore_become | bool }}"
+  register: _restore_result
+
+- name: "RESTORE COMPLETE"
+  debug:
+    msg:
+      - "════════════════════════════════════════════════"
+      - "  RESTORE COMPLETE"
+      - "════════════════════════════════════════════════"
+      - "  Restored from : {{ _restore_remote_src }}"
+      - "  Restored to   : {{ backup_restore_dest }}"
+      - "════════════════════════════════════════════════"

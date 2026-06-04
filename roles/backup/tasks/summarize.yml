@@ -1,0 +1,79 @@
+---
+# Phase 3: Build final backup item list and show pre-flight summary.
+# ALL discovery and validation is done before any data is transferred.
+#
+# Result: backup_final_items — the definitive ordered list of paths to rsync.
+
+- name: "Ensure backup_scan_items is defined when scan was skipped"
+  set_fact:
+    backup_scan_items: []
+  when: backup_scan_items is not defined
+
+- name: "Combine pre-defined and scan items into final backup list"
+  set_fact:
+    backup_final_items: >-
+      {{
+        (backup_predefined_items | map(attribute='path') | list) +
+        backup_scan_items
+        | unique | sort | list
+      }}
+
+# ─── Pre-defined paths summary ───────────────────────────────────────────────
+
+- name: "Summary — pre-defined paths included"
+  debug:
+    msg: "[INCLUDE] {{ item.path }}  ({{ item.desc | default('') }})"
+  loop: "{{ backup_predefined_items }}"
+  loop_control:
+    label: "{{ item.path }}"
+
+- name: "Summary — pre-defined paths skipped (not found on disk)"
+  vars:
+    _included_paths: "{{ backup_predefined_items | map(attribute='path') | list }}"
+  debug:
+    msg: "[SKIP   ] {{ item.path }}  ({{ item.desc | default('') }}) — does not exist"
+  loop: "{{ backup_paths }}"
+  loop_control:
+    label: "{{ item.path }}"
+  when: item.path not in _included_paths
+
+# ─── Smart scan summary ───────────────────────────────────────────────────────
+
+- name: "Summary — smart scan items found"
+  debug:
+    msg: "[SCAN   ] {{ item }}"
+  loop: "{{ backup_scan_items }}"
+  loop_control:
+    label: "{{ item }}"
+  when: backup_scan_enabled | bool and backup_scan_items | length > 0
+
+- name: "Summary — smart scan found nothing extra"
+  debug:
+    msg: "Smart scan: no additional items found (or scan disabled)."
+  when: not backup_scan_enabled | bool or backup_scan_items | length == 0
+
+# ─── Final totals and confirmation ────────────────────────────────────────────
+
+- name: "BACKUP PLAN"
+  debug:
+    msg:
+      - "════════════════════════════════════════════════"
+      - "  BACKUP PLAN"
+      - "════════════════════════════════════════════════"
+      - "  Total items : {{ backup_final_items | length }}"
+      - "    Pre-defined included : {{ backup_predefined_items | length }}"
+      - "    Pre-defined skipped  : {{ backup_paths | length - backup_predefined_items | length }}"
+      - "    Smart scan additions : {{ backup_scan_items | length }}"
+      - "  Destination : {{ backup_remote_user }}@{{ backup_remote_host }}:{{ backup_remote_base_path }}/{{ backup_pc_id }}/"
+      - "════════════════════════════════════════════════"
+
+- name: "Abort if there is nothing to backup"
+  fail:
+    msg: "Nothing to backup. All pre-defined paths were missing and scan found nothing."
+  when: backup_final_items | length == 0
+
+- name: "Confirm — press ENTER to start backup or Ctrl+C → A to abort"
+  pause:
+    prompt: |
+      Review the plan printed above.
+      Press ENTER to start the backup, or Ctrl+C then A to abort

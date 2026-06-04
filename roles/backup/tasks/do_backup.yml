@@ -1,0 +1,52 @@
+---
+# Phase 4: Execute backup via rsync over SSH.
+#
+# Uses rsync -R (--relative) so the full absolute path is preserved on the
+# remote host under <backup_remote_base_path>/<backup_pc_id>/.
+# This makes restore straightforward: rsync the remote folder back to /.
+#
+# SSH connectivity prerequisite:
+#   The user running this playbook (or root when backup_rsync_become: true)
+#   must have passwordless SSH access to backup_remote_user@backup_remote_host.
+#   Generate and authorise an SSH key on the remote server beforehand.
+
+- name: "Build rsync command flags"
+  set_fact:
+    _rsync_delete_flag: "{{ '--delete' if backup_rsync_delete | bool else '' }}"
+    _rsync_dest: >-
+      {{ backup_remote_user }}@{{ backup_remote_host }}:{{ backup_remote_base_path }}/{{ backup_pc_id }}/
+
+- name: "Ensure remote destination directory exists"
+  shell: >
+    ssh -p {{ backup_remote_port }}
+    -o BatchMode=yes
+    -o StrictHostKeyChecking=accept-new
+    {{ backup_remote_user }}@{{ backup_remote_host }}
+    "mkdir -p {{ backup_remote_base_path }}/{{ backup_pc_id }}"
+  become: "{{ backup_rsync_become | bool }}"
+  changed_when: false
+
+- name: "Backup item → remote"
+  shell: >
+    rsync -avzR
+    -e "ssh -p {{ backup_remote_port }} -o BatchMode=yes -o StrictHostKeyChecking=accept-new"
+    {{ backup_rsync_extra_opts }}
+    {{ _rsync_delete_flag }}
+    {{ item | quote }}
+    {{ _rsync_dest | quote }}
+  become: "{{ backup_rsync_become | bool }}"
+  loop: "{{ backup_final_items }}"
+  loop_control:
+    label: "{{ item }}"
+  register: _backup_rsync_results
+
+- name: "BACKUP COMPLETE"
+  debug:
+    msg:
+      - "════════════════════════════════════════════════"
+      - "  BACKUP COMPLETE"
+      - "════════════════════════════════════════════════"
+      - "  PC identity : {{ backup_pc_id }}"
+      - "  Destination : {{ backup_remote_user }}@{{ backup_remote_host }}:{{ backup_remote_base_path }}/{{ backup_pc_id }}/"
+      - "  Items synced: {{ backup_final_items | length }}"
+      - "════════════════════════════════════════════════"
