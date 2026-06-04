@@ -234,6 +234,7 @@ backup_scan_patterns:
   - "(^|/).*\\.ods$"
   - "(^|/).*\\.xlsx$"
   - "(^|/).*\\.pdf$"
+  - "(^|/).*\\.rtf$"
 
 # Directory exclusions for scan traversal — full-path POSIX ERE regexes.
 # find -regextype posix-extended matches the COMPLETE path of each directory.
