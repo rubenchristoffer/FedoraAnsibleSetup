@@ -26,6 +26,7 @@
   loop: "{{ backup_predefined_items }}"
   loop_control:
     label: "{{ item.path }}"
+  when: backup_summary_verbose | bool
 
 - name: "Summary — pre-defined paths skipped (not found on disk)"
   vars:
@@ -45,7 +46,7 @@
   loop: "{{ backup_scan_items }}"
   loop_control:
     label: "{{ item }}"
-  when: backup_scan_enabled | bool and backup_scan_items | length > 0
+  when: backup_scan_enabled | bool and backup_scan_items | length > 0 and backup_summary_verbose | bool
 
 - name: "Summary — smart scan found nothing extra"
   debug:
@@ -56,16 +57,21 @@
 
 - name: "BACKUP PLAN"
   debug:
-    msg:
-      - "════════════════════════════════════════════════"
-      - "  BACKUP PLAN"
-      - "════════════════════════════════════════════════"
-      - "  Total items : {{ backup_final_items | length }}"
-      - "    Pre-defined included : {{ backup_predefined_items | length }}"
-      - "    Pre-defined skipped  : {{ backup_paths | length - backup_predefined_items | length }}"
-      - "    Smart scan additions : {{ backup_scan_items | length }}"
-      - "  Destination : {{ backup_remote_user }}@{{ backup_remote_host }}:{{ backup_remote_base_path }}/{{ backup_pc_id }}/"
-      - "════════════════════════════════════════════════"
+    msg: >-
+      {{
+        ['════════════════════════════════════════════════',
+         '  BACKUP PLAN',
+         '════════════════════════════════════════════════',
+         '  Total items : ' + (backup_final_items | length | string),
+         '    Pre-defined included : ' + (backup_predefined_items | length | string),
+         '    Pre-defined skipped  : ' + ((backup_paths | length - backup_predefined_items | length) | string),
+         '    Smart scan additions : ' + (backup_scan_items | length | string),
+         '  Destination : ' + backup_remote_user + '@' + backup_remote_host + ':' + backup_remote_base_path + '/' + backup_pc_id + '/',
+         '════════════════════════════════════════════════']
+        + (['  Items to backup:'] + backup_final_items | map('regex_replace', '^(.*)$', '    \1') | list
+           if backup_summary_verbose | bool else [])
+        + ['════════════════════════════════════════════════']
+      }}
 
 - name: "Abort if there is nothing to backup"
   fail:

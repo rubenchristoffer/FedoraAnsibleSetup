@@ -16,6 +16,14 @@ backup_remote_port: 22
 backup_remote_base_path: "/backups"
 
 # =============================================================================
+# Summary verbosity
+#
+# When true, each individual file/folder is printed during the pre-flight
+# summary (Phase 3). Set to false to show totals only.
+# =============================================================================
+backup_summary_verbose: true
+
+# =============================================================================
 # Home directory placeholder
 #
 # When backing up, /home/<user>/ is stored as /home/<placeholder>/ on the
