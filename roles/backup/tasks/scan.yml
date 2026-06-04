@@ -15,32 +15,31 @@
   set_fact:
     backup_scan_items: []
 
-# Build the -name 'x' -o -name 'y' clause for find -prune
-- name: "Build find prune expression"
+# Build prune expression: -regex 'pat1' -o -regex 'pat2' ...
+# Build file regex:        (pat1|pat2|...) matched by find -regex directly.
+# Both use POSIX ERE so the same patterns work for pruning and file matching.
+- name: "Build find expressions"
   set_fact:
-    _find_prune_expr: "{{ backup_scan_dir_excludes | map('regex_replace', '^(.*)$', \"-name '\\1'\") | join(' -o ') }}"
+    _find_prune_expr: "{{ backup_scan_dir_excludes | map('regex_replace', '^(.*)$', \"-regex '\\1'\") | join(' -o ') }}"
+    _find_file_regex: "{{ '(' + (backup_scan_patterns | join('|')) + ')' }}"
 
-# Uses find -prune which stops recursion INTO excluded dirs entirely,
-# making this much faster than post-filtering results from a full traversal.
-# rc=1 is acceptable — means some paths were unreadable (permission denied).
-- name: "Find candidate files (excluded dirs are pruned, not just filtered)"
-  shell: |
-    find {{ backup_scan_paths | map('quote') | join(' ') }} \
-      \( -type d \( {{ _find_prune_expr }} \) -prune \) \
-      -o -type f -print
+# Single find call:
+#   - prunes excluded dirs by full-path regex (never recurses into them)
+#   - matches files by full-path regex (no Ansible post-filter needed)
+# rc=1 is acceptable: means some paths were unreadable (permission denied).
+- name: "Find files matching scan patterns"
+  shell: >
+    find {{ backup_scan_paths | map('quote') | join(' ') }}
+    -regextype posix-extended
+    \( -type d \( {{ _find_prune_expr }} \) -prune \)
+    -o \( -type f -regex {{ _find_file_regex | quote }} -print \)
   register: _find_all
   changed_when: false
   failed_when: _find_all.rc > 1
 
-# Patterns are full-path regexes using (^|/) anchoring — no transformation needed.
-- name: "Filter results by scan patterns"
+- name: "Set scan raw paths"
   set_fact:
-    _scan_all_paths: >-
-      {{
-        _find_all.stdout_lines
-        | select('search', '(' + backup_scan_patterns | join('|') + ')')
-        | sort | list
-      }}
+    _scan_all_paths: "{{ _find_all.stdout_lines | sort | list }}"
 
 - name: "Build candidate list (mode: file) — use matched file paths as-is"
   set_fact:

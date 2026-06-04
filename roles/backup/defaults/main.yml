@@ -235,36 +235,47 @@ backup_scan_patterns:
   - "(^|/).*\\.xlsx$"
   - "(^|/).*\\.pdf$"
 
-# Directory names to exclude from scan traversal.
-# Plain names only — matched as exact path components (not regex).
-# Any file whose full path contains one of these as a directory segment is excluded.
+# Directory exclusions for scan traversal — full-path POSIX ERE regexes.
+# find -regextype posix-extended matches the COMPLETE path of each directory.
+#
+#   .*/name      — excludes any directory with that name anywhere in the tree
+#   /full/path   — excludes only that exact directory (good for specific folders)
+#
+# To exclude /home/<user>/Unity but NOT other Unity folders elsewhere:
+#   - "/home/{{ user }}/Unity"
 backup_scan_dir_excludes:
-  - ".git"
-  - "node_modules"
-  - "__pycache__"
-  - ".cache"
-  - "Cache"
-  - "cache"
-  - ".Trash"
-  - "tmp"
-  - "Trash"
-  - ".local"
+  - '.*/\.git'
+  - '.*/node_modules'
+  - '.*/__pycache__'
+  - '.*/\.cache'
+  - '.*/Cache'
+  - '.*/cache'
+  - '.*/\.Trash.*'
+  - '.*/tmp'
+  - '.*/Trash'
+  - '.*/\.local'
   # Build output and dependency caches
-  - "target"
-  - "dist"
-  - "build"
-  - "out"
-  - "bin"
-  - "obj"
-  - "venv"
-  - ".venv"
-  - "env"
-  - ".gradle"
-  - ".m2"
-  - ".cargo"
-  - ".rustup"
-  - ".npm"
-  - ".yarn"
+  - '.*/target'
+  - '.*/dist'
+  - '.*/build'
+  - '.*/out'
+  - '.*/bin'
+  - '.*/obj'
+  - '.*/venv'
+  - '.*/.venv'
+  - '.*/env'
+  - '.*/\.gradle'
+  - '.*/\.m2'
+  - '.*/\.cargo'
+  - '.*/\.rustup'
+  - '.*/\.npm'
+  - '.*/\.yarn'
+  # Specific paths — /home/<any user>/Unity (not subfolders named Unity deeper in the tree)
+  - '/home/[^/]+/Unity'
+  - '/home/[^/]+/.vscode'
+  - '/home/[^/]+/go'
+  - '/home/[^/]+/.ansible'
+  - '/home/[^/]+/.nvm'
 
 # What to include in the backup when a scan match is found:
 #   file   — back up only the matched file itself
