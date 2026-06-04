@@ -54,26 +54,79 @@ backup_pc_id: "{{ ansible_hostname }}"
 #   desc: (optional) human-readable description shown in the summary
 # =============================================================================
 backup_paths:
+  # ── Credentials & keys ────────────────────────────────────────────────────
   - path: "/home/{{ user }}/.ssh"
     desc: "SSH keys"
   - path: "/home/{{ user }}/.gnupg"
     desc: "GPG keys"
-  - path: "/home/{{ user }}/.config"
-    desc: "User application configs"
-  - path: "/home/{{ user }}/Documents"
-    desc: "Documents"
+  - path: "/home/{{ user }}/.password-store"
+    desc: "pass password manager store"
+
+  # ── Shell & terminal ──────────────────────────────────────────────────────
   - path: "/home/{{ user }}/.bashrc"
     desc: "Bash config"
   - path: "/home/{{ user }}/.bash_profile"
     desc: "Bash profile"
+  - path: "/home/{{ user }}/.bash_history"
+    desc: "Bash history"
   - path: "/home/{{ user }}/.profile"
     desc: "Shell profile"
+  - path: "/home/{{ user }}/.zshrc"
+    desc: "Zsh config"
+  - path: "/home/{{ user }}/.zsh_history"
+    desc: "Zsh history"
+  - path: "/home/{{ user }}/.config/fish"
+    desc: "Fish shell config"
+
+  # ── Editor & IDE ──────────────────────────────────────────────────────────
+  - path: "/home/{{ user }}/.vimrc"
+    desc: "Vim config"
+  - path: "/home/{{ user }}/.config/nvim"
+    desc: "Neovim config"
+  - path: "/home/{{ user }}/.tmux.conf"
+    desc: "Tmux config"
+
+  # ── Git ───────────────────────────────────────────────────────────────────
+  - path: "/home/{{ user }}/.gitconfig"
+    desc: "Git global config"
+
+  # ── App configs ───────────────────────────────────────────────────────────
+  - path: "/home/{{ user }}/.config"
+    desc: "User application configs (~/.config)"
+  - path: "/home/{{ user }}/.local/share/keyrings"
+    desc: "GNOME keyring"
+  - path: "/home/{{ user }}/.mozilla/firefox"
+    desc: "Firefox profiles"
+  - path: "/home/{{ user }}/.thunderbird"
+    desc: "Thunderbird profiles"
+
+  # ── Personal files ────────────────────────────────────────────────────────
+  - path: "/home/{{ user }}/Documents"
+    desc: "Documents"
+  - path: "/home/{{ user }}/Pictures"
+    desc: "Pictures"
+  - path: "/home/{{ user }}/Music"
+    desc: "Music"
+  - path: "/home/{{ user }}/Videos"
+    desc: "Videos"
   - path: "/home/{{ user }}/projects"
     desc: "Projects"
+
+  # ── System ────────────────────────────────────────────────────────────────
   - path: "/etc/hosts"
     desc: "Hosts file"
   - path: "/etc/fstab"
     desc: "Filesystem table"
+  - path: "/etc/environment"
+    desc: "System-wide environment variables"
+  - path: "/etc/ssh/sshd_config"
+    desc: "SSH server config"
+  - path: "/etc/NetworkManager/system-connections"
+    desc: "Saved WiFi/VPN connections (includes credentials)"
+  - path: "/etc/crontab"
+    desc: "System crontab"
+  - path: "/var/spool/cron/{{ user }}"
+    desc: "User crontab"
 
 # =============================================================================
 # Smart scan configuration
