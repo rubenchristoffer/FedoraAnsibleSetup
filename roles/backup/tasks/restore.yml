@@ -2,13 +2,16 @@
 # Restore: sync a named backup from the remote host back to this machine.
 #
 # How it works:
-#   Backup uses rsync -R (--relative) which preserves full absolute paths on
-#   the remote, e.g.: /backups/<pc-id>/home/user/.ssh/id_rsa
-#   Restoring syncs the entire <pc-id>/ folder back to backup_restore_dest
-#   (default: /), which reconstructs every file at its original absolute path.
+#   Home directory files are stored on the remote under /home/<backup_user_placeholder>/
+#   (default: __USER__). Before restoring, a temporary symlink
+#   /home/__USER__ → /home/<user> is created so rsync writes to the correct
+#   user's home directory. The symlink is removed afterwards.
+#
+#   All other paths (e.g. /etc/) are restored to their original absolute path.
 #
 # backup_restore_dest can be changed to e.g. /tmp/restore-preview/ for a
 # safe test restore that does not touch live system files.
+# (Note: the symlink trick only works correctly when backup_restore_dest is /.)
 
 - name: "Set restore source path"
   set_fact:
@@ -83,7 +86,8 @@
       - "════════════════════════════════════════════════"
       - "  Source      : {{ _restore_remote_src }}"
       - "  Destination : {{ backup_restore_dest }}"
-      - "  Note: files will be written to their original absolute paths."
+      - "  Restoring home dir as user: {{ user }}"
+      - "  (placeholder /home/{{ backup_user_placeholder }} → /home/{{ user }})"
       - "  Change backup_restore_dest to /tmp/restore-test/ to preview safely."
       - "════════════════════════════════════════════════"
 
@@ -92,6 +96,17 @@
     prompt: |
       Review the dry-run output above.
       Press ENTER to start the restore, or Ctrl+C then A to abort
+
+# ─── Create placeholder symlink ───────────────────────────────────────────────
+
+- name: "Create placeholder symlink: /home/{{ backup_user_placeholder }} → /home/{{ user }}"
+  file:
+    src: "/home/{{ user }}"
+    dest: "{{ backup_restore_dest | regex_replace('/$', '') }}/home/{{ backup_user_placeholder }}"
+    state: link
+    force: yes
+  become: true
+  when: backup_restore_dest == '/'
 
 # ─── Execute restore ──────────────────────────────────────────────────────────
 
@@ -103,6 +118,15 @@
     {{ backup_restore_dest | quote }}
   become: "{{ backup_restore_become | bool }}"
   register: _restore_result
+
+# ─── Remove placeholder symlink ───────────────────────────────────────────────
+
+- name: "Remove placeholder symlink /home/{{ backup_user_placeholder }}"
+  file:
+    path: "{{ backup_restore_dest | regex_replace('/$', '') }}/home/{{ backup_user_placeholder }}"
+    state: absent
+  become: true
+  when: backup_restore_dest == '/'
 
 - name: "RESTORE COMPLETE"
   debug:

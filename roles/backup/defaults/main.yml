@@ -16,6 +16,15 @@ backup_remote_port: 22
 backup_remote_base_path: "/backups"
 
 # =============================================================================
+# Home directory placeholder
+#
+# When backing up, /home/<user>/ is stored as /home/<placeholder>/ on the
+# remote. This allows restoring to a machine with a different username.
+# Change this only if the default clashes with a real username on your system.
+# =============================================================================
+backup_user_placeholder: "__USER__"
+
+# =============================================================================
 # PC identity
 #
 # The unique folder name for this machine's backups on the remote host.
@@ -113,9 +122,11 @@ backup_scan_mode: "file"
 # rsync options
 # =============================================================================
 
-# Extra rsync flags appended to every rsync call.
+# Extra rsync flags appended to every rsync call (list format).
 # -a, -z, -R are always added automatically. Do not repeat them here.
-backup_rsync_extra_opts: "--progress --stats"
+# Avoid --progress: it generates per-file output that hangs Ansible.
+backup_rsync_extra_opts:
+  - "--stats"
 
 # Pass --delete to rsync so files removed locally are also removed from backup.
 # Caution: deleted local files will be permanently removed from the backup too.
