@@ -15,20 +15,32 @@
   set_fact:
     backup_scan_items: []
 
-- name: "Scan filesystem for files matching backup_scan_patterns"
-  find:
-    paths: "{{ backup_scan_paths }}"
-    patterns: "{{ backup_scan_patterns }}"
-    use_regex: yes
-    recurse: yes
-    file_type: file
-    excludes: "{{ backup_scan_dir_excludes }}"
-    hidden: yes
-  register: _scan_raw
-
-- name: "Extract and sort matched file paths"
+# Build the -name 'x' -o -name 'y' clause for find -prune
+- name: "Build find prune expression"
   set_fact:
-    _scan_all_paths: "{{ _scan_raw.files | map(attribute='path') | sort | list }}"
+    _find_prune_expr: "{{ backup_scan_dir_excludes | map('regex_replace', '^(.*)$', \"-name '\\1'\") | join(' -o ') }}"
+
+# Uses find -prune which stops recursion INTO excluded dirs entirely,
+# making this much faster than post-filtering results from a full traversal.
+# rc=1 is acceptable — means some paths were unreadable (permission denied).
+- name: "Find candidate files (excluded dirs are pruned, not just filtered)"
+  shell: |
+    find {{ backup_scan_paths | map('quote') | join(' ') }} \
+      \( -type d \( {{ _find_prune_expr }} \) -prune \) \
+      -o -type f -print
+  register: _find_all
+  changed_when: false
+  failed_when: _find_all.rc > 1
+
+# Patterns are full-path regexes using (^|/) anchoring — no transformation needed.
+- name: "Filter results by scan patterns"
+  set_fact:
+    _scan_all_paths: >-
+      {{
+        _find_all.stdout_lines
+        | select('search', '(' + backup_scan_patterns | join('|') + ')')
+        | sort | list
+      }}
 
 - name: "Build candidate list (mode: file) — use matched file paths as-is"
   set_fact:
