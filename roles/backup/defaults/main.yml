@@ -297,11 +297,18 @@ backup_rsync_extra_opts:
 # Caution: deleted local files will be permanently removed from the backup too.
 backup_rsync_delete: false
 
-# Run rsync with become (sudo). Required when backing up files only root can
-# read (e.g. /etc/shadow). Ensure the SSH key is configured for the root user
-# on the remote backup server, or set backup_rsync_become: false and handle
-# permissions another way.
-backup_rsync_become: false
+# Run rsync with become (sudo) for system paths outside /home/.
+# This lets root read privileged files (e.g. /etc/ssh/sshd_config,
+# /etc/NetworkManager/system-connections). Home directory items always
+# run as the normal user regardless of this setting.
+backup_rsync_become: true
+
+# SSH private key to use when backup_rsync_become is true.
+# When rsync runs as root (become), it uses root's ~/.ssh/ by default —
+# which likely has no keys. Set this to your normal user's key so root
+# can still connect to the remote backup server.
+# Example: /home/f41/.ssh/id_ed25519
+backup_ssh_private_key: "/home/{{ user }}/.ssh/id_ed25519"
 
 # =============================================================================
 # Restore configuration
