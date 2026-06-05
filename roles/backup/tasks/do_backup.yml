@@ -16,7 +16,7 @@
   set_fact:
     _rsync_opts: >-
       {{
-        ['--mkpath']
+        ['--mkpath', '--sparse']
         + (['--delete'] if backup_rsync_delete | bool else [])
         + backup_rsync_extra_opts
         + ["-e 'ssh -i " + backup_ssh_private_key + " -o BatchMode=yes -o StrictHostKeyChecking=accept-new'"]

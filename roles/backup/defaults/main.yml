@@ -127,6 +127,10 @@ backup_paths:
     desc: "System crontab"
   - path: "/var/spool/cron/{{ user }}"
     desc: "User crontab"
+  - path: "/etc/libvirt"
+    desc: "libvirt configuration (networks, storage pools, domains)"
+  - path: "/var/lib/libvirt"
+    desc: "libvirt state and disk images (qcow2/raw, snapshots)"
 
 # =============================================================================
 # Smart scan configuration
