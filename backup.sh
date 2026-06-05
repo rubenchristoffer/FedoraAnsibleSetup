@@ -114,4 +114,4 @@ fi
 echo "========================================"
 echo ""
 
-ansible-playbook "$PLAYBOOK" "${EXTRA_ARGS[@]}" "$@"
+sudo ansible-playbook "$PLAYBOOK" "${EXTRA_ARGS[@]}" "$@"

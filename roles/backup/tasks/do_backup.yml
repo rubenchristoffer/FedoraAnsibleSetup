@@ -12,44 +12,22 @@
 #   The user running this playbook (or root when backup_rsync_become: true)
 #   must have passwordless SSH access to backup_remote_user@backup_remote_host.
 
-- name: "Build rsync opts (normal user)"
+- name: "Build rsync opts"
   set_fact:
     _rsync_opts: >-
       {{
         ['--mkpath']
         + (['--delete'] if backup_rsync_delete | bool else [])
         + backup_rsync_extra_opts
-        + ["-e 'ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new'"]
-      }}
-
-- name: "Build rsync opts (become / explicit SSH key)"
-  set_fact:
-    _rsync_opts_become: >-
-      {{
-        ['--mkpath']
-        + (['--delete'] if backup_rsync_delete | bool else [])
-        + backup_rsync_extra_opts
         + ["-e 'ssh -i " + backup_ssh_private_key + " -o BatchMode=yes -o StrictHostKeyChecking=accept-new'"]
       }}
-  when: backup_rsync_become | bool
 
 - name: "Build per-item src/dest mapping (substitute home dir with placeholder)"
   vars:
     _remote_root: "{{ backup_remote_user }}@{{ backup_remote_host }}:{{ backup_remote_base_path }}/{{ backup_pc_id }}"
     _transformed: "{{ item | regex_replace('^/home/' + user, '/home/' + backup_user_placeholder) }}"
   set_fact:
-    _home_item_map: >-
-      {{
-        (_home_item_map | default([]))
-        + ([{'src': item, 'dest': _remote_root + (_transformed | dirname) + '/'}]
-           if item.startswith('/home/' + user) else [])
-      }}
-    _system_item_map: >-
-      {{
-        (_system_item_map | default([]))
-        + ([{'src': item, 'dest': _remote_root + (item | dirname) + '/'}]
-           if not item.startswith('/home/' + user) else [])
-      }}
+    _backup_item_map: "{{ (_backup_item_map | default([])) + [{'src': item, 'dest': _remote_root + (_transformed | dirname) + '/'}] }}"
   loop: "{{ backup_final_items }}"
   loop_control:
     label: "{{ item }}"
@@ -64,7 +42,7 @@
   become: false
   changed_when: false
 
-- name: "Backup home items → remote (normal user)"
+- name: "Backup item → remote"
   ansible.posix.synchronize:
     src: "{{ item.src }}"
     dest: "{{ item.dest }}"
@@ -73,26 +51,11 @@
     compress: yes
     rsync_opts: "{{ _rsync_opts }}"
     dest_port: "{{ backup_remote_port }}"
-  become: false
-  loop: "{{ _home_item_map | default([]) }}"
-  loop_control:
-    label: "{{ item.src }}"
-  register: _backup_rsync_home_results
-
-- name: "Backup system items → remote (become for root-owned files)"
-  ansible.posix.synchronize:
-    src: "{{ item.src }}"
-    dest: "{{ item.dest }}"
-    mode: push
-    archive: yes
-    compress: yes
-    rsync_opts: "{{ _rsync_opts_become if backup_rsync_become | bool else _rsync_opts }}"
-    dest_port: "{{ backup_remote_port }}"
   become: "{{ backup_rsync_become | bool }}"
-  loop: "{{ _system_item_map | default([]) }}"
+  loop: "{{ _backup_item_map }}"
   loop_control:
     label: "{{ item.src }}"
-  register: _backup_rsync_system_results
+  register: _backup_rsync_results
 
 - name: "BACKUP COMPLETE"
   debug:
