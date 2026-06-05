@@ -34,7 +34,8 @@
 
 - name: "Ensure remote base directory exists"
   shell: >
-    ssh -p {{ backup_remote_port }}
+    ssh -i {{ backup_ssh_private_key }}
+    -p {{ backup_remote_port }}
     -o BatchMode=yes
     -o StrictHostKeyChecking=accept-new
     {{ backup_remote_user }}@{{ backup_remote_host }}
