@@ -14,7 +14,8 @@
 - name: "Set restore source paths"
   set_fact:
     _restore_remote_base: "{{ backup_remote_user }}@{{ backup_remote_host }}:{{ backup_remote_base_path }}/{{ backup_restore_name }}"
-    _restore_ssh_opts: "-p {{ backup_remote_port }} -o BatchMode=yes -o StrictHostKeyChecking=accept-new"
+    _restore_ssh_opts: "-i {{ backup_ssh_private_key }} -p {{ backup_remote_port }} -o BatchMode=yes -o StrictHostKeyChecking=accept-new"
+    _restore_rsync_opts: "{{ backup_rsync_extra_opts + [\"-e 'ssh -i \" + backup_ssh_private_key + \" -p \" + (backup_remote_port | string) + \" -o BatchMode=yes -o StrictHostKeyChecking=accept-new'\"] }}"
     _restore_dest: "{{ backup_restore_dest | regex_replace('/$', '') }}"
 
 # ─── Verify remote backup exists ─────────────────────────────────────────────
@@ -68,34 +69,44 @@
 # ─── Dry-run to preview what will be restored ────────────────────────────────
 
 - name: "Dry-run — home directory ({{ backup_user_placeholder }} → {{ user }})"
-  shell: >
-    rsync -avz --dry-run
-    -e "ssh {{ _restore_ssh_opts }}"
-    "{{ _restore_remote_base }}/home/{{ backup_user_placeholder }}/"
-    "{{ _restore_dest }}/home/{{ user }}/"
+  ansible.posix.synchronize:
+    mode: pull
+    src: "{{ _restore_remote_base }}/home/{{ backup_user_placeholder }}/"
+    dest: "{{ _restore_dest }}/home/{{ user }}/"
+    archive: yes
+    compress: yes
+    rsync_opts: "{{ _restore_rsync_opts }}"
+    dest_port: "{{ backup_remote_port }}"
+  check_mode: true
   become: "{{ backup_restore_become | bool }}"
   register: _dryrun_home
-  changed_when: false
   when: _remote_home_exists.rc == 0
 
 - name: "Dry-run — non-home paths (excluding home/)"
-  shell: >
-    rsync -avz --dry-run --exclude='home/'
-    -e "ssh {{ _restore_ssh_opts }}"
-    "{{ _restore_remote_base }}/"
-    "{{ _restore_dest }}/"
+  ansible.posix.synchronize:
+    mode: pull
+    src: "{{ _restore_remote_base }}/"
+    dest: "{{ _restore_dest }}/"
+    archive: yes
+    compress: yes
+    rsync_opts: "{{ _restore_rsync_opts + ['--exclude=home/'] }}"
+    dest_port: "{{ backup_remote_port }}"
+  check_mode: true
   become: "{{ backup_restore_become | bool }}"
   register: _dryrun_system
-  changed_when: false
 
 - name: "Dry-run output — home"
   debug:
-    msg: "{{ _dryrun_home.stdout_lines }}"
+    msg:
+      - "Home restore dry-run changed: {{ _dryrun_home.changed | default(false) }}"
+      - "No changes means destination already matches backup for home data."
   when: _remote_home_exists.rc == 0
 
 - name: "Dry-run output — system paths"
   debug:
-    msg: "{{ _dryrun_system.stdout_lines }}"
+    msg:
+      - "System restore dry-run changed: {{ _dryrun_system.changed | default(false) }}"
+      - "No changes means destination already matches backup for non-home data."
 
 # ─── Confirmation ─────────────────────────────────────────────────────────────
 
@@ -121,20 +132,26 @@
 # ─── Execute restore ──────────────────────────────────────────────────────────
 
 - name: "Restore home directory ({{ backup_user_placeholder }} → {{ user }})"
-  shell: >
-    rsync -avz
-    -e "ssh {{ _restore_ssh_opts }}"
-    "{{ _restore_remote_base }}/home/{{ backup_user_placeholder }}/"
-    "{{ _restore_dest }}/home/{{ user }}/"
+  ansible.posix.synchronize:
+    mode: pull
+    src: "{{ _restore_remote_base }}/home/{{ backup_user_placeholder }}/"
+    dest: "{{ _restore_dest }}/home/{{ user }}/"
+    archive: yes
+    compress: yes
+    rsync_opts: "{{ _restore_rsync_opts }}"
+    dest_port: "{{ backup_remote_port }}"
   become: "{{ backup_restore_become | bool }}"
   when: _remote_home_exists.rc == 0
 
 - name: "Restore non-home paths"
-  shell: >
-    rsync -avz --exclude='home/'
-    -e "ssh {{ _restore_ssh_opts }}"
-    "{{ _restore_remote_base }}/"
-    "{{ _restore_dest }}/"
+  ansible.posix.synchronize:
+    mode: pull
+    src: "{{ _restore_remote_base }}/"
+    dest: "{{ _restore_dest }}/"
+    archive: yes
+    compress: yes
+    rsync_opts: "{{ _restore_rsync_opts + ['--exclude=home/'] }}"
+    dest_port: "{{ backup_remote_port }}"
   become: "{{ backup_restore_become | bool }}"
 
 - name: "RESTORE COMPLETE"
