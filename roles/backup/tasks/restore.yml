@@ -49,64 +49,22 @@
   failed_when: false
   changed_when: false
 
-# ─── List backup contents for user review ────────────────────────────────────
+# ─── Preview top-level restore content ───────────────────────────────────────
 
-- name: "List top-level contents of remote backup"
+- name: List preview directories in selected backup (depth 3)
   shell: >
     ssh {{ _restore_ssh_opts }}
     {{ backup_remote_user }}@{{ backup_remote_host }}
-    "find {{ backup_remote_base_path }}/{{ backup_restore_name }}
-     -maxdepth 4 -mindepth 1 \( -type f -o -type d \)
-     | sort | head -60"
-  register: _remote_listing
+    bash -lc '
+      find "{{ backup_remote_base_path }}/{{ backup_restore_name }}" -mindepth 1 -maxdepth 3 -type d
+    '
+  register: _restore_top_level
   failed_when: false
   changed_when: false
 
-- name: "Remote backup contents (up to 60 entries)"
+- name: "Top-level entries that will be restored"
   debug:
-    msg: "{{ _remote_listing.stdout_lines }}"
-
-# ─── Dry-run to preview what will be restored ────────────────────────────────
-
-- name: "Dry-run — home directory ({{ backup_user_placeholder }} → {{ user }})"
-  ansible.posix.synchronize:
-    mode: pull
-    src: "{{ _restore_remote_base }}/home/{{ backup_user_placeholder }}/"
-    dest: "{{ _restore_dest }}/home/{{ user }}/"
-    archive: yes
-    compress: yes
-    rsync_opts: "{{ _restore_rsync_opts }}"
-    dest_port: "{{ backup_remote_port }}"
-  check_mode: true
-  become: "{{ backup_restore_become | bool }}"
-  register: _dryrun_home
-  when: _remote_home_exists.rc == 0
-
-- name: "Dry-run — non-home paths (excluding home/)"
-  ansible.posix.synchronize:
-    mode: pull
-    src: "{{ _restore_remote_base }}/"
-    dest: "{{ _restore_dest }}/"
-    archive: yes
-    compress: yes
-    rsync_opts: "{{ _restore_rsync_opts + ['--exclude=home/'] }}"
-    dest_port: "{{ backup_remote_port }}"
-  check_mode: true
-  become: "{{ backup_restore_become | bool }}"
-  register: _dryrun_system
-
-- name: "Dry-run output — home"
-  debug:
-    msg:
-      - "Home restore dry-run changed: {{ _dryrun_home.changed | default(false) }}"
-      - "No changes means destination already matches backup for home data."
-  when: _remote_home_exists.rc == 0
-
-- name: "Dry-run output — system paths"
-  debug:
-    msg:
-      - "System restore dry-run changed: {{ _dryrun_system.changed | default(false) }}"
-      - "No changes means destination already matches backup for non-home data."
+    msg: "{{ _restore_top_level.stdout_lines }}"
 
 # ─── Confirmation ─────────────────────────────────────────────────────────────
 
@@ -126,7 +84,7 @@
 - name: "Confirm — press ENTER to start restore or Ctrl+C → A to abort"
   pause:
     prompt: |
-      Review the dry-run output above.
+      Review the top-level restore entries above.
       Press ENTER to start the restore, or Ctrl+C then A to abort
 
 # ─── Execute restore ──────────────────────────────────────────────────────────
