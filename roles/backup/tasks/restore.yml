@@ -93,7 +93,6 @@
   file:
     path: "{{ _restore_dest }}"
     state: directory
-    mode: "0755"
   become: "{{ backup_restore_become | bool }}"
   when: _restore_dest != ''
 
@@ -101,7 +100,6 @@
   file:
     path: "{{ item }}"
     state: directory
-    mode: "0755"
   loop:
     - "{{ (_restore_dest if _restore_dest != '' else '') + '/home' }}"
     - "{{ (_restore_dest if _restore_dest != '' else '') + '/home/' + user }}"

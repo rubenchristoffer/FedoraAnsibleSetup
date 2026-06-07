@@ -57,6 +57,78 @@
     label: "{{ item.src }}"
   register: _backup_rsync_results
 
+- name: "Collect recursive local file/dir metadata for backed-up paths"
+  shell: |
+    set -euo pipefail
+
+    item={{ item | quote }}
+
+    if [[ -d "$item" ]]; then
+      # For directory items, include directory + file metadata recursively.
+      find "$item" \( -type d -o -type f \) -printf '%y|%U|%G|%m|%p\n'
+    elif [[ -e "$item" ]]; then
+      # For file items, include the file itself.
+      stat -c 'f|%u|%g|%a|%n' "$item"
+
+      # Also include all ancestor directories that may be implied on remote.
+      d="$(dirname "$item")"
+      while true; do
+        stat -c 'd|%u|%g|%a|%n' "$d"
+        if [[ "$d" == "/" ]]; then
+          break
+        fi
+        d="$(dirname "$d")"
+      done
+    fi
+  loop: "{{ backup_final_items }}"
+  loop_control:
+    label: "{{ item }}"
+  register: _backup_dir_meta_raw
+  become: "{{ backup_rsync_become | bool }}"
+  changed_when: false
+
+- name: "Build unique recursive directory metadata list"
+  set_fact:
+    _backup_dir_meta_lines: >-
+      {{
+        _backup_dir_meta_raw.results
+        | map(attribute='stdout_lines')
+        | flatten
+        | reject('equalto', '')
+        | unique
+        | list
+      }}
+
+- name: "Apply recursive file/dir owner/group/mode to remote"
+  shell: |
+    ssh -i {{ backup_ssh_private_key }} \
+      -p {{ backup_remote_port }} \
+      -o BatchMode=yes \
+      -o StrictHostKeyChecking=accept-new \
+      {{ backup_remote_user }}@{{ backup_remote_host }} \
+      'while IFS="|" read -r kind uid gid mode src_path; do
+         [[ -z "$src_path" ]] && continue
+
+         dst_path="$src_path"
+         case "$dst_path" in
+           /home/{{ user }}|/home/{{ user }}/*)
+             dst_path="/home/{{ backup_user_placeholder }}${dst_path#/home/{{ user }}}"
+             ;;
+         esac
+
+         dst_path="{{ backup_remote_base_path }}/{{ backup_pc_id }}${dst_path}"
+
+         if [[ -e "$dst_path" ]]; then
+           chown "$uid:$gid" "$dst_path"
+           chmod "$mode" "$dst_path"
+         fi
+       done' <<'EOF'
+    {{ _backup_dir_meta_lines | join('\n') }}
+    EOF
+  become: false
+  changed_when: false
+  when: _backup_dir_meta_lines | length > 0
+
 - name: "BACKUP COMPLETE"
   debug:
     msg:
