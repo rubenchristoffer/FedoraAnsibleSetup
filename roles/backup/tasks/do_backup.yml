@@ -77,27 +77,33 @@
     BORG_PASSPHRASE: "{{ backup_borg_passphrase }}"
     BORG_RSH: "ssh -i {{ backup_ssh_private_key }} -o BatchMode=yes -o StrictHostKeyChecking=accept-new"
   become: "{{ backup_borg_become | bool }}"
+  register: _borg_init_result
   when: _borg_list_check.rc != 0
+  failed_when:
+    - _borg_init_result.rc != 0
+    - "'already exists' not in _borg_init_result.stderr"
 
 # ─── Create archive ───────────────────────────────────────────────────────────
 
-- name: "Write backup paths to temp file"
-  copy:
-    dest: "/tmp/.borg-backup-paths-{{ backup_pc_id }}"
-    content: "{{ backup_final_items | join('\n') }}\n"
-    mode: "0600"
-  become: "{{ backup_borg_become | bool }}"
+- name: "Starting Borg archive creation"
+  debug:
+    msg:
+      - "Archive : {{ backup_borg_archive_name }}"
+      - "Items   : {{ backup_final_items | length }}"
+      - "Log     : /tmp/borg-progress-{{ backup_pc_id }}.log"
+      - "Run in another terminal to stream: tail -f /tmp/borg-progress-{{ backup_pc_id }}.log"
 
 - name: "Create Borg archive on remote"
   shell: |
-    cat /tmp/.borg-backup-paths-{{ backup_pc_id }} | \
     borg create \
       --compression {{ backup_borg_compression }} \
       --stats \
+      --progress \
       --exclude-caches \
       --comment "backup_user={{ backup_user }}" \
-      --paths-from-stdin \
-      {{ _borg_repo | quote }}::{{ backup_borg_archive_name }}
+      {{ _borg_repo | quote }}::{{ backup_borg_archive_name }} \
+      {{ backup_final_items | map('quote') | join(' ') }} \
+      > /tmp/borg-progress-{{ backup_pc_id }}.log 2>&1
   environment:
     BORG_PASSPHRASE: "{{ backup_borg_passphrase }}"
     BORG_RSH: "ssh -i {{ backup_ssh_private_key }} -o BatchMode=yes -o StrictHostKeyChecking=accept-new"
@@ -107,16 +113,8 @@
 
 - name: "Warn if borg reported warnings during archive creation (rc=1)"
   debug:
-    msg:
-      - "WARNING: borg create exited with rc=1 (some files may have been skipped)"
-      - "{{ _borg_create_result.stderr_lines }}"
+    msg: "WARNING: borg create exited with rc=1 — some files may have been skipped. Check /tmp/borg-progress-{{ backup_pc_id }}.log"
   when: _borg_create_result.rc == 1
-
-- name: "Remove temp paths file"
-  file:
-    path: "/tmp/.borg-backup-paths-{{ backup_pc_id }}"
-    state: absent
-  become: "{{ backup_borg_become | bool }}"
 
 # ─── Prune and compact ────────────────────────────────────────────────────────
 
