@@ -89,6 +89,25 @@
 
 # ─── Execute restore ──────────────────────────────────────────────────────────
 
+- name: "Ensure restore destination root exists"
+  file:
+    path: "{{ _restore_dest }}"
+    state: directory
+    mode: "0755"
+  become: "{{ backup_restore_become | bool }}"
+  when: _restore_dest != ''
+
+- name: "Ensure restore home destination directories exist"
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ (_restore_dest if _restore_dest != '' else '') + '/home' }}"
+    - "{{ (_restore_dest if _restore_dest != '' else '') + '/home/' + user }}"
+  become: "{{ backup_restore_become | bool }}"
+  when: _remote_home_exists.rc == 0
+
 - name: "Restore home directory ({{ backup_user_placeholder }} → {{ user }})"
   ansible.posix.synchronize:
     mode: pull
