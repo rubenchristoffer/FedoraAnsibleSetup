@@ -297,10 +297,6 @@ backup_scan_mode: "file"
 backup_rsync_extra_opts:
   - "--stats"
 
-# Pass --delete to rsync so files removed locally are also removed from backup.
-# Caution: deleted local files will be permanently removed from the backup too.
-backup_rsync_delete: false
-
 # Run rsync with become (sudo) for system paths outside /home/.
 # This lets root read privileged files (e.g. /etc/ssh/sshd_config,
 # /etc/NetworkManager/system-connections). Home directory items always

@@ -15,7 +15,7 @@
   set_fact:
     _restore_remote_base: "{{ backup_remote_user }}@{{ backup_remote_host }}:{{ backup_remote_base_path }}/{{ backup_restore_name }}"
     _restore_ssh_opts: "-i {{ backup_ssh_private_key }} -p {{ backup_remote_port }} -o BatchMode=yes -o StrictHostKeyChecking=accept-new"
-    _restore_rsync_opts: "{{ backup_rsync_extra_opts + [\"-e 'ssh -i \" + backup_ssh_private_key + \" -p \" + (backup_remote_port | string) + \" -o BatchMode=yes -o StrictHostKeyChecking=accept-new'\"] }}"
+    _restore_rsync_opts: "{{ ['--sparse'] + backup_rsync_extra_opts + [\"-e 'ssh -i \" + backup_ssh_private_key + \" -o BatchMode=yes -o StrictHostKeyChecking=accept-new'\"] }}"
     _restore_dest: "{{ backup_restore_dest | regex_replace('/$', '') }}"
 
 # ─── Verify remote backup exists ─────────────────────────────────────────────
