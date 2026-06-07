@@ -1,0 +1,46 @@
+---
+# Generate backup file list playbook.
+#
+# Scans this machine for all paths to back up, then writes the result to
+# vars/backup_list.yml. That file is consumed by backup.yml.
+#
+# Workflow:
+#   1. ./generateBackupList.sh        → generate vars/backup_list.yml
+#   2. ./backup.sh                    → create Borg archive on remote
+#   3. ./restore.sh [backup-name]     → restore on another machine
+#
+# vars/backup_list.yml is gitignored — local paths stay out of the repository.
+
+- name: "Generate backup file list"
+  hosts: localhost
+  gather_facts: true
+
+  vars_files:
+    - vars/custom.yml
+
+  vars_prompt:
+    - name: user
+      prompt: "Linux user to backup for"
+      private: no
+
+  tasks:
+    - name: "Phase 1 — Validate pre-defined backup paths"
+      include_role:
+        name: backup
+        tasks_from: validate.yml
+
+    - name: "Phase 2 — Smart scan for files matching configured patterns"
+      include_role:
+        name: backup
+        tasks_from: scan.yml
+      when: backup_scan_enabled | default(true) | bool
+
+    - name: "Phase 3 — Build final item list and show summary"
+      include_role:
+        name: backup
+        tasks_from: summarize.yml
+
+    - name: "Phase 4 — Write backup list to vars/backup_list.yml"
+      include_role:
+        name: backup
+        tasks_from: write_backup_list.yml

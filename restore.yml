@@ -1,0 +1,39 @@
+---
+# Restore playbook.
+#
+# Restores a Borg archive from the remote repository to this machine.
+# __USER__ mapping: if the archive was created for a different username,
+# the home directory is transparently remapped (backup_user → user).
+#
+# Usage:
+#   ./restore.sh [backup-name] [user] [archive]
+#
+# Or interactively:
+#   ansible-playbook restore.yml
+
+- name: "Restore from Borg backup"
+  hosts: localhost
+  gather_facts: true
+
+  vars_files:
+    - vars/custom.yml
+
+  vars_prompt:
+    - name: user
+      prompt: "Linux username to restore TO (on this machine)"
+      private: no
+
+    - name: backup_restore_name
+      prompt: "Backup to restore from (pc-id / hostname)"
+      private: no
+
+    - name: backup_restore_archive
+      prompt: "Archive name (press Enter for 'latest')"
+      private: no
+      default: "latest"
+
+  tasks:
+    - name: "Restore from remote Borg repository"
+      include_role:
+        name: backup
+        tasks_from: restore.yml

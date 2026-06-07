@@ -46,12 +46,12 @@
   loop: "{{ backup_scan_items }}"
   loop_control:
     label: "{{ item }}"
-  when: backup_scan_enabled | bool and backup_scan_items | length > 0 and backup_summary_verbose | bool
+  when: backup_scan_enabled | default(true) | bool and backup_scan_items | default([]) | length > 0 and backup_summary_verbose | default(false) | bool
 
 - name: "Summary — smart scan found nothing extra"
   debug:
     msg: "Smart scan: no additional items found (or scan disabled)."
-  when: not backup_scan_enabled | bool or backup_scan_items | length == 0
+  when: not backup_scan_enabled | default(true) | bool or backup_scan_items | default([]) | length == 0
 
 # ─── Final totals and confirmation ────────────────────────────────────────────
 
@@ -66,7 +66,6 @@
          '    Pre-defined included : ' + (backup_predefined_items | length | string),
          '    Pre-defined skipped  : ' + ((backup_paths | length - backup_predefined_items | length) | string),
          '    Smart scan additions : ' + (backup_scan_items | length | string),
-         '  Destination : ' + backup_remote_user + '@' + backup_remote_host + ':' + backup_remote_base_path + '/' + backup_pc_id + '/',
          '════════════════════════════════════════════════']
         + (['  Items to backup:'] + backup_final_items | map('regex_replace', '^(.*)$', '    \1') | list
            if backup_summary_verbose | bool else [])

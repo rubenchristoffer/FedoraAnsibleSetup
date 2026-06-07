@@ -1,72 +1,112 @@
 ---
-# Restore: sync a named backup from the remote host back to this machine.
+# Restore: extract a Borg archive from the remote repository over native SSH.
 #
-# How it works:
-#   Two rsync calls are made:
-#   1. Home dir: remote:.../home/<placeholder>/  →  <dest>/home/<user>/
-#      This remaps the placeholder username to the real username without symlinks.
-#   2. Non-home: remote:.../ → <dest>/ excluding home/
-#      Restores /etc/, /root/, and any other system paths at their original location.
+# __USER__ mapping:
+#   Every archive is tagged with the source username in its Borg comment
+#   (backup_user=<name>). If the restore target uses a different username,
+#   this task extracts to a temp staging directory, renames
+#     staging/home/<backup_user>/  →  staging/home/<user>/
+#   then rsyncs from staging to backup_restore_dest. System paths (/etc/ etc.)
+#   are always restored to their original locations.
 #
-# backup_restore_dest can be changed to e.g. /tmp/restore-preview/ for a
-# safe test restore that does not touch live system files.
+# Borg must be installed on the remote host.
 
-- name: "Set restore source paths"
+- name: "Set Borg repository URI and working variables"
   set_fact:
-    _restore_remote_base: "{{ backup_remote_user }}@{{ backup_remote_host }}:{{ backup_remote_base_path }}/{{ backup_restore_name }}"
-    _restore_ssh_opts: "-i {{ backup_ssh_private_key }} -p {{ backup_remote_port }} -o BatchMode=yes -o StrictHostKeyChecking=accept-new"
-    _restore_rsync_opts: "{{ ['--sparse'] + backup_rsync_extra_opts + [\"-e 'ssh -i \" + backup_ssh_private_key + \" -o BatchMode=yes -o StrictHostKeyChecking=accept-new'\"] }}"
+    _borg_repo: "ssh://{{ backup_remote_user }}@{{ backup_remote_host }}:{{ backup_remote_port }}{{ backup_remote_base_path }}/{{ backup_restore_name }}/borg-repo"
     _restore_dest: "{{ backup_restore_dest | regex_replace('/$', '') }}"
+    _borg_rsh: "ssh -i {{ backup_ssh_private_key }} -o BatchMode=yes -o StrictHostKeyChecking=accept-new"
+    _staging_dir: "/tmp/borg-restore-staging-{{ backup_restore_name | replace('/', '-') }}"
 
-# ─── Verify remote backup exists ─────────────────────────────────────────────
+# ─── Verify remote repository ────────────────────────────────────────────────
 
-- name: "Check remote backup directory exists"
-  shell: >
-    ssh {{ _restore_ssh_opts }}
-    {{ backup_remote_user }}@{{ backup_remote_host }}
-    "test -d {{ backup_remote_base_path }}/{{ backup_restore_name }} && echo EXISTS"
-  register: _remote_exists_check
+- name: "List remote Borg repository (connectivity check)"
+  command: borg list {{ _borg_repo }}
+  environment:
+    BORG_PASSPHRASE: "{{ backup_borg_passphrase }}"
+    BORG_RSH: "{{ _borg_rsh }}"
+  become: "{{ backup_restore_become | bool }}"
+  register: _borg_list_result
   failed_when: false
   changed_when: false
 
-- name: "Fail if remote backup is not found"
+- name: "Fail if remote repository is not reachable"
   fail:
     msg: |
-      Remote backup not found: {{ backup_remote_base_path }}/{{ backup_restore_name }}
-      on {{ backup_remote_user }}@{{ backup_remote_host }}
+      Could not connect to Borg repository: {{ _borg_repo }}
+      borg list returned rc={{ _borg_list_result.rc }}
 
-      To list available backups, run:
-        ssh {{ _restore_ssh_opts }} {{ backup_remote_user }}@{{ backup_remote_host }} \
+      Ensure borgbackup is installed on the remote host and the path exists.
+      To list available backups run:
+        ssh -i {{ backup_ssh_private_key }} -p {{ backup_remote_port }} \
+          {{ backup_remote_user }}@{{ backup_remote_host }} \
           ls {{ backup_remote_base_path }}/
-  when: _remote_exists_check.rc != 0 or 'EXISTS' not in _remote_exists_check.stdout
+  when: _borg_list_result.rc != 0
 
-- name: "Check remote home placeholder directory exists"
-  shell: >
-    ssh {{ _restore_ssh_opts }}
-    {{ backup_remote_user }}@{{ backup_remote_host }}
-    "test -d {{ backup_remote_base_path }}/{{ backup_restore_name }}/home/{{ backup_user_placeholder }} && echo EXISTS"
-  register: _remote_home_exists
-  failed_when: false
-  changed_when: false
+# ─── Install Borg locally ─────────────────────────────────────────────────────
 
-# ─── Preview top-level restore content ───────────────────────────────────────
+- name: "Install borgbackup locally"
+  package:
+    name: borgbackup
+    state: present
+  become: true
 
-- name: List preview directories in selected backup (depth 3)
-  shell: >
-    ssh {{ _restore_ssh_opts }}
-    {{ backup_remote_user }}@{{ backup_remote_host }}
-    bash -lc '
-      find "{{ backup_remote_base_path }}/{{ backup_restore_name }}" -mindepth 1 -maxdepth 3 -type d
-    '
-  register: _restore_top_level
-  failed_when: false
-  changed_when: false
+# ─── Show archives and resolve target ────────────────────────────────────────
 
-- name: "Top-level entries that will be restored"
+- name: "Available archives"
   debug:
-    msg: "{{ _restore_top_level.stdout_lines }}"
+    msg: "{{ _borg_list_result.stdout_lines }}"
 
-# ─── Confirmation ─────────────────────────────────────────────────────────────
+- name: "Resolve latest archive name"
+  command: borg list --short --last 1 {{ _borg_repo }}
+  environment:
+    BORG_PASSPHRASE: "{{ backup_borg_passphrase }}"
+    BORG_RSH: "{{ _borg_rsh }}"
+  become: "{{ backup_restore_become | bool }}"
+  register: _borg_latest_result
+  changed_when: false
+  when: backup_restore_archive == "latest"
+
+- name: "Set resolved archive name"
+  set_fact:
+    _restore_archive: >-
+      {{
+        _borg_latest_result.stdout | trim
+        if backup_restore_archive == 'latest'
+        else backup_restore_archive
+      }}
+
+- name: "Fail if no archive could be resolved"
+  fail:
+    msg: "No archives found in repository {{ _borg_repo }}"
+  when: _restore_archive | length == 0
+
+# ─── Read backup_user from archive comment ───────────────────────────────────
+
+- name: "Read archive info (for backup_user)"
+  shell: borg info --json {{ _borg_repo | quote }}::{{ _restore_archive | quote }}
+  environment:
+    BORG_PASSPHRASE: "{{ backup_borg_passphrase }}"
+    BORG_RSH: "{{ _borg_rsh }}"
+  become: "{{ backup_restore_become | bool }}"
+  register: _borg_info_raw
+  changed_when: false
+
+- name: "Parse backup_user from archive comment"
+  set_fact:
+    _archive_comment: "{{ (_borg_info_raw.stdout | from_json).archives[0].comment }}"
+
+- name: "Set _backup_user from archive comment"
+  set_fact:
+    _backup_user: "{{ _archive_comment | regex_replace('^backup_user=', '') }}"
+  when: _archive_comment is match('^backup_user=')
+
+- name: "Set _backup_user fallback (no comment set — assume same as restore user)"
+  set_fact:
+    _backup_user: "{{ user }}"
+  when: not (_archive_comment is match('^backup_user='))
+
+# ─── Restore plan ────────────────────────────────────────────────────────────
 
 - name: "RESTORE PLAN"
   debug:
@@ -74,60 +114,99 @@
       - "════════════════════════════════════════════════"
       - "  RESTORE PLAN"
       - "════════════════════════════════════════════════"
-      - "  Backup      : {{ backup_restore_name }}"
-      - "  Destination : {{ _restore_dest or '/' }}"
-      - "  Home dir    : /home/{{ backup_user_placeholder }}/ → /home/{{ user }}/"
-      - "  System paths: restored excluding home/ (e.g. /etc/)"
-      - "  Change backup_restore_dest to /tmp/restore-test/ to preview safely."
+      - "  Backup name   : {{ backup_restore_name }}"
+      - "  Archive        : {{ _restore_archive }}"
+      - "  Remote repo    : {{ _borg_repo }}"
+      - "  Backup user    : {{ _backup_user }}"
+      - "  Restore user   : {{ user }}"
+      - "  Home remapping : {{ 'YES  /home/' + _backup_user + '/  →  /home/' + user + '/' if _backup_user != user else 'none (same username)' }}"
+      - "  Destination    : {{ _restore_dest or '/' }}"
+      - "  Staging dir    : {{ _staging_dir }}"
+      - "  (set backup_restore_dest=/tmp/restore-test to preview safely)"
       - "════════════════════════════════════════════════"
 
 - name: "Confirm — press ENTER to start restore or Ctrl+C → A to abort"
   pause:
     prompt: |
-      Review the top-level restore entries above.
+      Review the archive list and plan above.
       Press ENTER to start the restore, or Ctrl+C then A to abort
 
-# ─── Execute restore ──────────────────────────────────────────────────────────
+# ─── Extract to staging ───────────────────────────────────────────────────────
 
-- name: "Ensure restore destination root exists"
+- name: "Create staging directory"
+  file:
+    path: "{{ _staging_dir }}"
+    state: directory
+    mode: "0700"
+  become: "{{ backup_restore_become | bool }}"
+
+- name: "Extract archive to staging"
+  shell: |
+    borg extract \
+      --progress \
+      {{ _borg_repo | quote }}::{{ _restore_archive | quote }}
+  args:
+    chdir: "{{ _staging_dir }}"
+  environment:
+    BORG_PASSPHRASE: "{{ backup_borg_passphrase }}"
+    BORG_RSH: "{{ _borg_rsh }}"
+  become: "{{ backup_restore_become | bool }}"
+
+# ─── Remap home directory if username differs ─────────────────────────────────
+
+- name: "Remap home directory ({{ _backup_user }} → {{ user }})"
+  shell: |
+    set -euo pipefail
+    src="{{ _staging_dir }}/home/{{ _backup_user }}"
+    dst="{{ _staging_dir }}/home/{{ user }}"
+    if [[ -d "$src" ]]; then
+      mkdir -p "$(dirname "$dst")"
+      mv "$src" "$dst"
+      chown -R {{ user }}: "$dst"
+    fi
+  become: "{{ backup_restore_become | bool }}"
+  when: _backup_user != user
+
+# ─── Sync staging → restore destination ─────────────────────────────────────
+
+- name: "Ensure restore destination exists"
   file:
     path: "{{ _restore_dest }}"
     state: directory
   become: "{{ backup_restore_become | bool }}"
   when: _restore_dest != ''
 
-- name: "Ensure restore home destination directories exist"
+- name: "Check home dir exists in staging"
+  stat:
+    path: "{{ _staging_dir }}/home/{{ user }}"
+  register: _staging_home_stat
+  become: "{{ backup_restore_become | bool }}"
+
+- name: "Sync home directory from staging to destination"
+  shell: |
+    rsync -aHAX \
+      "{{ _staging_dir }}/home/{{ user }}/" \
+      "{{ _restore_dest }}/home/{{ user }}/"
+  become: "{{ backup_restore_become | bool }}"
+  when: _staging_home_stat.stat.exists
+
+- name: "Sync system paths (non-home) from staging to destination"
+  shell: |
+    rsync -aHAX \
+      --exclude=home/ \
+      "{{ _staging_dir }}/" \
+      "{{ _restore_dest }}/"
+  become: "{{ backup_restore_become | bool }}"
+
+# ─── Cleanup staging ─────────────────────────────────────────────────────────
+
+- name: "Remove staging directory"
   file:
-    path: "{{ item }}"
-    state: directory
-  loop:
-    - "{{ (_restore_dest if _restore_dest != '' else '') + '/home' }}"
-    - "{{ (_restore_dest if _restore_dest != '' else '') + '/home/' + user }}"
+    path: "{{ _staging_dir }}"
+    state: absent
   become: "{{ backup_restore_become | bool }}"
-  when: _remote_home_exists.rc == 0
 
-- name: "Restore home directory ({{ backup_user_placeholder }} → {{ user }})"
-  ansible.posix.synchronize:
-    mode: pull
-    src: "{{ _restore_remote_base }}/home/{{ backup_user_placeholder }}/"
-    dest: "{{ _restore_dest }}/home/{{ user }}/"
-    archive: yes
-    compress: yes
-    rsync_opts: "{{ _restore_rsync_opts }}"
-    dest_port: "{{ backup_remote_port }}"
-  become: "{{ backup_restore_become | bool }}"
-  when: _remote_home_exists.rc == 0
-
-- name: "Restore non-home paths"
-  ansible.posix.synchronize:
-    mode: pull
-    src: "{{ _restore_remote_base }}/"
-    dest: "{{ _restore_dest }}/"
-    archive: yes
-    compress: yes
-    rsync_opts: "{{ _restore_rsync_opts + ['--exclude=home/'] }}"
-    dest_port: "{{ backup_remote_port }}"
-  become: "{{ backup_restore_become | bool }}"
+# ─── Summary ─────────────────────────────────────────────────────────────────
 
 - name: "RESTORE COMPLETE"
   debug:
@@ -135,7 +214,8 @@
       - "════════════════════════════════════════════════"
       - "  RESTORE COMPLETE"
       - "════════════════════════════════════════════════"
-      - "  Restored from : {{ _restore_remote_base }}"
-      - "  Restored to   : {{ _restore_dest or '/' }}"
-      - "  Home dir      : /home/{{ backup_user_placeholder }}/ → /home/{{ user }}/"
+      - "  Restored archive : {{ _restore_archive }}"
+      - "  Remote repo      : {{ _borg_repo }}"
+      - "  Extracted to     : {{ _restore_dest or '/' }}"
+      - "  Home remapping   : {{ '/home/' + _backup_user + '/ → /home/' + user + '/' if _backup_user != user else 'none' }}"
       - "════════════════════════════════════════════════"

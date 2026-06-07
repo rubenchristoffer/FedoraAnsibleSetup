@@ -24,15 +24,6 @@ backup_remote_base_path: "/backups"
 backup_summary_verbose: true
 
 # =============================================================================
-# Home directory placeholder
-#
-# When backing up, /home/<user>/ is stored as /home/<placeholder>/ on the
-# remote. This allows restoring to a machine with a different username.
-# Change this only if the default clashes with a real username on your system.
-# =============================================================================
-backup_user_placeholder: "__USER__"
-
-# =============================================================================
 # PC identity
 #
 # The unique folder name for this machine's backups on the remote host.
@@ -288,37 +279,70 @@ backup_scan_dir_excludes:
 backup_scan_mode: "file"
 
 # =============================================================================
-# rsync options
+# Borg backup configuration
+#
+# Borg runs LOCALLY and connects to the remote repository via its native SSH
+# transport (ssh:// URI). Borg must be installed on the remote host.
+# The remote repository lives at:
+#   {{ backup_remote_base_path }}/{{ backup_pc_id }}/borg-repo/
 # =============================================================================
 
-# Extra rsync flags appended to every rsync call (list format).
-# -a, -z, -R are always added automatically. Do not repeat them here.
-# Avoid --progress: it generates per-file output that hangs Ansible.
-backup_rsync_extra_opts:
-  - "--stats"
+# Borg repository passphrase used for encryption.
+# Leave empty to disable encryption (not recommended).
+# Set this via vars/custom.yml or ansible-vault to keep it out of version control.
+backup_borg_passphrase: ""
 
-# Run rsync with become (sudo) for system paths outside /home/.
-# This lets root read privileged files (e.g. /etc/ssh/sshd_config,
-# /etc/NetworkManager/system-connections). Home directory items always
-# run as the normal user regardless of this setting.
-backup_rsync_become: true
+# Borg encryption mode for new repositories.
+#   repokey-blake2  — key stored in repo, BLAKE2 MAC (recommended)
+#   none            — no encryption (use only for testing)
+backup_borg_encryption: "repokey-blake2"
 
-# SSH private key to use when backup_rsync_become is true.
-# When rsync runs as root (become), it uses root's ~/.ssh/ by default —
-# which likely has no keys. Set this to your normal user's key so root
-# can still connect to the remote backup server.
-# Example: /home/f41/.ssh/id_ed25519
+# Borg compression algorithm.
+#   lz4    — very fast, moderate ratio (good default)
+#   zstd   — better ratio, still fast
+#   none   — no compression
+backup_borg_compression: "lz4"
+
+# Archive name template. {now} is expanded by Borg at creation time.
+backup_borg_archive_name: "{{ backup_pc_id }}-{now:%Y-%m-%dT%H:%M:%S}"
+
+# Archive retention policy for borg prune.
+backup_borg_prune_daily: 7
+backup_borg_prune_weekly: 4
+backup_borg_prune_monthly: 6
+backup_borg_prune_yearly: 2
+
+# Install borgbackup on the remote host automatically before the first backup.
+# Requires the SSH user to have sudo access on the remote.
+# Set to false if Borg is already managed independently on the remote.
+backup_borg_install_on_remote: true
+
+# Run Borg (create/prune/compact) with become (sudo) so it can read
+# privileged system paths such as /etc/ssh/sshd_config.
+backup_borg_become: true
+
+# SSH private key used to connect to the remote Borg repository.
+# Point this to your normal user's key even when become is true,
+# since root's ~/.ssh/ typically has no keys.
 backup_ssh_private_key: "/home/{{ user }}/.ssh/id_ed25519"
 
 # =============================================================================
 # Restore configuration
 # =============================================================================
 
-# Destination root for restore. Defaults to / which restores everything back
-# to its original absolute path. Set to e.g. /tmp/restore-test/ to do a safe
-# dry-run restore without overwriting live files.
+# Which PC backup to pull from remote. Defaults to this machine's identity.
+# Override with -e "backup_restore_name=other-pc" to restore from another host.
+backup_restore_name: "{{ backup_pc_id }}"
+
+# Archive to extract. Use "latest" to automatically select the most recent one,
+# or specify an exact archive name (e.g. "myhostname-2025-06-01T12:00:00").
+backup_restore_archive: "latest"
+
+# Destination root for extraction. Defaults to / which restores files back to
+# their original absolute paths. Set to e.g. /tmp/restore-test to preview
+# safely without touching live system files.
 backup_restore_dest: "/"
 
-# Run restore rsync with become (sudo). Recommended true when restoring system
-# paths such as /etc/. Requires the restore-running user to have sudo access.
+# Run borg extract with become (sudo). Required when restoring system paths
+# such as /etc/ that are owned by root.
 backup_restore_become: true

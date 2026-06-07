@@ -1,133 +1,147 @@
 ---
-# Phase 4: Execute backup via ansible.posix.synchronize (rsync wrapper).
+# Phase 4: Execute backup via Borg over native SSH transport.
 #
-# Home directory items (/home/<user>/...) are stored under the placeholder
-# /home/<backup_user_placeholder>/ on the remote (default: __USER__).
-# This makes the backup portable: restoring to a PC with a different username
-# only requires specifying the new username — the placeholder is substituted.
+# Borg runs LOCALLY and connects to the remote repository using a ssh:// URI.
+# Borg must be installed on the remote host (used as the server-side helper).
 #
-# All other absolute paths (e.g. /etc/) keep their full path structure.
-#
-# SSH connectivity prerequisite:
-#   The user running this playbook (or root when backup_rsync_become: true)
-#   must have passwordless SSH access to backup_remote_user@backup_remote_host.
+# Workflow:
+#   1. Install borgbackup locally.
+#   2. Initialise the remote repository (first run only).
+#   3. Create a new archive from backup_final_items.
+#   4. Prune archives older than the configured retention policy.
+#   5. Compact the repository to reclaim freed space.
 
-- name: "Build rsync opts"
+- name: "Set remote Borg repository URI"
   set_fact:
-    _rsync_opts: >-
-      {{
-        ['--mkpath', '--sparse']
-        + backup_rsync_extra_opts
-        + ["-e 'ssh -i " + backup_ssh_private_key + " -o BatchMode=yes -o StrictHostKeyChecking=accept-new'"]
-      }}
+    _borg_repo: "ssh://{{ backup_remote_user }}@{{ backup_remote_host }}:{{ backup_remote_port }}{{ backup_remote_base_path }}/{{ backup_pc_id }}/borg-repo"
 
-- name: "Build per-item src/dest mapping (substitute home dir with placeholder)"
-  vars:
-    _remote_root: "{{ backup_remote_user }}@{{ backup_remote_host }}:{{ backup_remote_base_path }}/{{ backup_pc_id }}"
-    _transformed: "{{ item | regex_replace('^/home/' + user, '/home/' + backup_user_placeholder) }}"
-  set_fact:
-    _backup_item_map: "{{ (_backup_item_map | default([])) + [{'src': item, 'dest': _remote_root + (_transformed | dirname) + '/'}] }}"
-  loop: "{{ backup_final_items }}"
-  loop_control:
-    label: "{{ item }}"
+# ─── Confirm before proceeding ──────────────────────────────────────────────
 
-- name: "Ensure remote base directory exists"
-  shell: >
-    ssh -i {{ backup_ssh_private_key }}
-    -p {{ backup_remote_port }}
-    -o BatchMode=yes
-    -o StrictHostKeyChecking=accept-new
-    {{ backup_remote_user }}@{{ backup_remote_host }}
-    "mkdir -p {{ backup_remote_base_path }}/{{ backup_pc_id }}"
-  become: false
-  changed_when: false
+- name: "Show backup plan"
+  debug:
+    msg:
+      - "════════════════════════════════════════════════"
+      - "  BACKUP PLAN"
+      - "════════════════════════════════════════════════"
+      - "  Backup user : {{ backup_user }}"
+      - "  Items       : {{ backup_final_items | length }}"
+      - "  Remote repo : {{ _borg_repo }}"
+      - "════════════════════════════════════════════════"
 
-- name: "Backup item → remote"
-  ansible.posix.synchronize:
-    src: "{{ item.src }}"
-    dest: "{{ item.dest }}"
-    mode: push
-    archive: yes
-    compress: yes
-    rsync_opts: "{{ _rsync_opts }}"
-    dest_port: "{{ backup_remote_port }}"
-  become: "{{ backup_rsync_become | bool }}"
-  loop: "{{ _backup_item_map }}"
-  loop_control:
-    label: "{{ item.src }}"
-  register: _backup_rsync_results
+- name: "Confirm — press ENTER to start or Ctrl+C → A to abort"
+  pause:
+    prompt: |
+      Press ENTER to start the backup, or Ctrl+C then A to abort
 
-- name: "Collect recursive local file/dir metadata for backed-up paths"
+# ─── Install Borg locally ─────────────────────────────────────────────────────
+
+- name: "Install borgbackup locally"
+  package:
+    name: borgbackup
+    state: present
+  become: true
+
+# ─── Install Borg on remote ───────────────────────────────────────────────────
+
+- name: "Install borgbackup on remote host"
   shell: |
-    set -euo pipefail
-
-    item={{ item | quote }}
-
-    if [[ -d "$item" ]]; then
-      # For directory items, include directory + file metadata recursively.
-      find "$item" \( -type d -o -type f \) -printf '%y|%U|%G|%m|%p\n'
-    elif [[ -e "$item" ]]; then
-      # For file items, include the file itself.
-      stat -c 'f|%u|%g|%a|%n' "$item"
-
-      # Also include all ancestor directories that may be implied on remote.
-      d="$(dirname "$item")"
-      while true; do
-        stat -c 'd|%u|%g|%a|%n' "$d"
-        if [[ "$d" == "/" ]]; then
-          break
-        fi
-        d="$(dirname "$d")"
-      done
-    fi
-  loop: "{{ backup_final_items }}"
-  loop_control:
-    label: "{{ item }}"
-  register: _backup_dir_meta_raw
-  become: "{{ backup_rsync_become | bool }}"
-  changed_when: false
-
-- name: "Build unique recursive directory metadata list"
-  set_fact:
-    _backup_dir_meta_lines: >-
-      {{
-        _backup_dir_meta_raw.results
-        | map(attribute='stdout_lines')
-        | flatten
-        | reject('equalto', '')
-        | unique
-        | list
-      }}
-
-- name: "Apply recursive file/dir owner/group/mode to remote"
-  shell: |
-    ssh -i {{ backup_ssh_private_key }} \
+    ssh \
+      -i {{ backup_ssh_private_key }} \
       -p {{ backup_remote_port }} \
       -o BatchMode=yes \
       -o StrictHostKeyChecking=accept-new \
       {{ backup_remote_user }}@{{ backup_remote_host }} \
-      'while IFS="|" read -r kind uid gid mode src_path; do
-         [[ -z "$src_path" ]] && continue
-
-         dst_path="$src_path"
-         case "$dst_path" in
-           /home/{{ user }}|/home/{{ user }}/*)
-             dst_path="/home/{{ backup_user_placeholder }}${dst_path#/home/{{ user }}}"
-             ;;
-         esac
-
-         dst_path="{{ backup_remote_base_path }}/{{ backup_pc_id }}${dst_path}"
-
-         if [[ -e "$dst_path" ]]; then
-           chown "$uid:$gid" "$dst_path"
-           chmod "$mode" "$dst_path"
-         fi
-       done' <<'EOF'
-    {{ _backup_dir_meta_lines | join('\n') }}
-    EOF
+      'command -v borg >/dev/null 2>&1 || sudo apt-get install -y borgbackup 2>/dev/null || sudo dnf install -y borgbackup 2>/dev/null || sudo pacman -S --noconfirm borg 2>/dev/null || sudo zypper install -y borgbackup'
   become: false
+  changed_when: true
+  when: backup_borg_install_on_remote | bool
+
+# ─── Initialise repository ────────────────────────────────────────────────────
+
+- name: "Check if remote Borg repository is already initialised"
+  command: borg list {{ _borg_repo }}
+  environment:
+    BORG_PASSPHRASE: "{{ backup_borg_passphrase }}"
+    BORG_RSH: "ssh -i {{ backup_ssh_private_key }} -o BatchMode=yes -o StrictHostKeyChecking=accept-new"
+  become: "{{ backup_borg_become | bool }}"
+  register: _borg_list_check
+  failed_when: false
   changed_when: false
-  when: _backup_dir_meta_lines | length > 0
+
+- name: "Initialise remote Borg repository"
+  command: >
+    borg init
+    --encryption={{ backup_borg_encryption }}
+    {{ _borg_repo }}
+  environment:
+    BORG_PASSPHRASE: "{{ backup_borg_passphrase }}"
+    BORG_RSH: "ssh -i {{ backup_ssh_private_key }} -o BatchMode=yes -o StrictHostKeyChecking=accept-new"
+  become: "{{ backup_borg_become | bool }}"
+  when: _borg_list_check.rc != 0
+
+# ─── Create archive ───────────────────────────────────────────────────────────
+
+- name: "Write backup paths to temp file"
+  copy:
+    dest: "/tmp/.borg-backup-paths-{{ backup_pc_id }}"
+    content: "{{ backup_final_items | join('\n') }}\n"
+    mode: "0600"
+  become: "{{ backup_borg_become | bool }}"
+
+- name: "Create Borg archive on remote"
+  shell: |
+    cat /tmp/.borg-backup-paths-{{ backup_pc_id }} | \
+    borg create \
+      --compression {{ backup_borg_compression }} \
+      --stats \
+      --exclude-caches \
+      --comment "backup_user={{ backup_user }}" \
+      --paths-from-stdin \
+      {{ _borg_repo | quote }}::{{ backup_borg_archive_name }}
+  environment:
+    BORG_PASSPHRASE: "{{ backup_borg_passphrase }}"
+    BORG_RSH: "ssh -i {{ backup_ssh_private_key }} -o BatchMode=yes -o StrictHostKeyChecking=accept-new"
+  become: "{{ backup_borg_become | bool }}"
+  register: _borg_create_result
+  failed_when: _borg_create_result.rc > 1
+
+- name: "Warn if borg reported warnings during archive creation (rc=1)"
+  debug:
+    msg:
+      - "WARNING: borg create exited with rc=1 (some files may have been skipped)"
+      - "{{ _borg_create_result.stderr_lines }}"
+  when: _borg_create_result.rc == 1
+
+- name: "Remove temp paths file"
+  file:
+    path: "/tmp/.borg-backup-paths-{{ backup_pc_id }}"
+    state: absent
+  become: "{{ backup_borg_become | bool }}"
+
+# ─── Prune and compact ────────────────────────────────────────────────────────
+
+- name: "Prune old archives (retention policy)"
+  command: >
+    borg prune
+    --stats
+    --keep-daily={{ backup_borg_prune_daily }}
+    --keep-weekly={{ backup_borg_prune_weekly }}
+    --keep-monthly={{ backup_borg_prune_monthly }}
+    --keep-yearly={{ backup_borg_prune_yearly }}
+    {{ _borg_repo }}
+  environment:
+    BORG_PASSPHRASE: "{{ backup_borg_passphrase }}"
+    BORG_RSH: "ssh -i {{ backup_ssh_private_key }} -o BatchMode=yes -o StrictHostKeyChecking=accept-new"
+  become: "{{ backup_borg_become | bool }}"
+
+- name: "Compact repository (reclaim space from pruned archives)"
+  command: borg compact {{ _borg_repo }}
+  environment:
+    BORG_PASSPHRASE: "{{ backup_borg_passphrase }}"
+    BORG_RSH: "ssh -i {{ backup_ssh_private_key }} -o BatchMode=yes -o StrictHostKeyChecking=accept-new"
+  become: "{{ backup_borg_become | bool }}"
+
+# ─── Summary ──────────────────────────────────────────────────────────────────
 
 - name: "BACKUP COMPLETE"
   debug:
@@ -135,8 +149,8 @@
       - "════════════════════════════════════════════════"
       - "  BACKUP COMPLETE"
       - "════════════════════════════════════════════════"
-      - "  PC identity : {{ backup_pc_id }}"
-      - "  Destination : {{ backup_remote_user }}@{{ backup_remote_host }}:{{ backup_remote_base_path }}/{{ backup_pc_id }}/"
-      - "  Items synced: {{ backup_final_items | length }}"
-      - "  Home dir stored as: /home/{{ backup_user_placeholder }}/ (placeholder)"
+      - "  PC identity  : {{ backup_pc_id }}"
+      - "  Remote repo  : {{ _borg_repo }}"
+      - "  Items backed : {{ backup_final_items | length }}"
+      - "  Retention    : daily={{ backup_borg_prune_daily }} weekly={{ backup_borg_prune_weekly }} monthly={{ backup_borg_prune_monthly }} yearly={{ backup_borg_prune_yearly }}"
       - "════════════════════════════════════════════════"

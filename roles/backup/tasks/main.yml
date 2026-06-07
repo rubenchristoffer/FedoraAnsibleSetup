@@ -1,34 +1,26 @@
 ---
-- name: "[INFO] Running in {{ backup_mode | upper }} mode"
+# This file is NOT the entry point for the backup system.
+#
+# ─── WORKFLOW ────────────────────────────────────────────────────────────────
+#
+# Step 1 — Generate backup file list (run on this machine):
+#   ./generateBackupList.sh
+#   This calls generate_backup_list.yml which runs:
+#     validate.yml → scan.yml → summarize.yml → write_backup_list.yml
+#   Output: vars/backup_list.yml  (gitignored)
+#
+# Step 2 — Run backup (run on this machine):
+#   ./backup.sh
+#   This calls backup.yml which loads vars/backup_list.yml and runs:
+#     do_backup.yml
+#
+# Step 3 — Restore (run on destination machine):
+#   ./restore.sh [backup-name] [user] [archive]
+#   This calls restore.yml which runs:
+#     restore.yml task (staging-based extraction with __USER__ remapping)
+#
+# ─────────────────────────────────────────────────────────────────────────────
+
+- name: "[INFO] This file is not used directly — see workflow comment above"
   debug:
-    msg:
-      - "Mode         : {{ backup_mode | upper }}"
-      - "PC identity  : {{ backup_pc_id }}"
-      - "Remote       : {{ backup_remote_user }}@{{ backup_remote_host }}:{{ backup_remote_base_path }}"
-      - "Remote port  : {{ backup_remote_port }}"
-
-# ─── BACKUP ──────────────────────────────────────────────────────────────────
-
-- name: Run backup flow
-  when: backup_mode == 'backup'
-  block:
-    - name: "Phase 1 — Validate pre-defined backup paths"
-      import_tasks: validate.yml
-
-    - name: "Phase 2 — Smart scan for files matching configured patterns"
-      import_tasks: scan.yml
-      when: backup_scan_enabled | bool
-
-    - name: "Phase 3 — Build final item list and show pre-flight summary"
-      import_tasks: summarize.yml
-
-    - name: "Phase 4 — Execute backup"
-      import_tasks: do_backup.yml
-
-# ─── RESTORE ─────────────────────────────────────────────────────────────────
-
-- name: Run restore flow
-  when: backup_mode == 'restore'
-  block:
-    - name: "Restore from remote backup: {{ backup_restore_name }}"
-      import_tasks: restore.yml
+    msg: "Use generateBackupList.sh, backup.sh, or restore.sh instead of running this role directly."
