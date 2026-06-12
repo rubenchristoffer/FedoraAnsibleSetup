@@ -1,4 +1,4 @@
-fedora_version: 41
+fedora_version: 44
 hostname: "{{ user }}-pc"
 bluetooth_name: '{{ hostname }}'
 tmpdir: /tmp/fedora-setup

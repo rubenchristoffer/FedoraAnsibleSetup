@@ -1,16 +1,23 @@
+- name: Remove Fedora ffmpeg-free package to avoid RPM Fusion conflict
+  dnf:
+    name: ffmpeg-free
+    state: absent
+
 - name: Install multimedia packages
   dnf:
-    name: 
+    name:
       - ffmpeg
       - audacity
       - strawberry
       - vlc
       - gimp
     state: present
+    allowerasing: yes
 
 - name: Install spotify
   dnf:
-    name: 
+    name:
       - lpf-spotify-client
     state: present
+    disable_excludes: all
     

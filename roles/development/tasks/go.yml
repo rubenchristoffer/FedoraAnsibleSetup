@@ -3,6 +3,8 @@
   dnf:
     name: golang
     state: present
+    disable_excludes: all
+
 
 - name: add global go to global PATH
   lineinfile:

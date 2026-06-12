@@ -3,7 +3,6 @@
   get_url:
     url: https://download.docker.com/linux/fedora/docker-ce.repo
     dest: /etc/yum.repos.d/docker-ce.repo
-    checksum: sha256:d19388de1ab46e0547d04c576014bc857a60cd4d5ff37f50709b8337c88672a9
 
 - name: install docker
   dnf:

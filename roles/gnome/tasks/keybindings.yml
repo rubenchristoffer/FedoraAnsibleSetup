@@ -8,20 +8,25 @@
   with_items: "{{ gnome_dconf_values }}"
 
 # Note: Some variables are surrounded by extra single quotes to ensure dconf accepts them
+- name: Initialize combined keybindings list
+  set_fact:
+    combined_keybindings: []
+
 - name: Generate custom keybinding paths with metadata
   set_fact:
-    combined_keybindings: >-
-      [{% for i in range(custom_keybindings | length) %}
-      {
-        "name": "'{{ custom_keybindings[i].name }}'",
-        "command": "'{{ custom_keybindings[i].command }}'",
-        "binding": "'{{ custom_keybindings[i].binding }}'",
-        "path": "'{{ keybind_path }}/custom{{ i }}/'",
-        "nameKey": "{{ keybind_path }}/custom{{ i }}/name",
-        "commandKey": "{{ keybind_path }}/custom{{ i }}/command",
-        "bindingKey": "{{ keybind_path }}/custom{{ i }}/binding"
-      }{% if not loop.last %}, {% endif %}
-      {% endfor %}]
+    combined_keybindings: "{{ combined_keybindings + [new_keybinding] }}"
+  loop: "{{ custom_keybindings }}"
+  loop_control:
+    index_var: i
+  vars:
+    new_keybinding:
+      name: "'{{ item.name }}'"
+      command: "'{{ item.command }}'"
+      binding: "'{{ item.binding }}'"
+      path: "'{{ keybind_path }}/custom{{ i }}/'"
+      nameKey: "{{ keybind_path }}/custom{{ i }}/name"
+      commandKey: "{{ keybind_path }}/custom{{ i }}/command"
+      bindingKey: "{{ keybind_path }}/custom{{ i }}/binding"
 
 - name: Set custom keybinding mappings
   become: true
